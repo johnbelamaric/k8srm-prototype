@@ -2,32 +2,45 @@ package main
 
 import (
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"testing"
 )
 
-func TestScheduleWithFullAvailability(t *testing.T) {
+var rcOneContainerPod = ResourceClaim{
+	Driver: "kubelet",
+	Capacities: []CapacityRequest{
+		{
+			Capacity: "pods",
+			Counter:  &ResourceCounterRequest{Request: 1},
+		},
+		{
+			Capacity: "containers",
+			Counter:  &ResourceCounterRequest{Request: 1},
+		},
+	},
+}
+
+var rcOneFooCore2GiFooMemory = ResourceClaim{
+	Driver: "vendorFoo.com/foozer",
+	Capacities: []CapacityRequest{
+		{
+			Capacity: "foo-cores",
+			Counter:  &ResourceCounterRequest{Request: 1},
+		},
+		{
+			Capacity: "foo-memory",
+			Quantity: &ResourceQuantityRequest{Request: resource.MustParse("2Gi")},
+		},
+	},
+}
+
+func TestScheduleForCore(t *testing.T) {
 	testCases := map[string]struct {
 		claim              CapacityClaim
 		expectedAllocation *NodeCapacityAllocation
 	}{
 		"single pod, single container": {
-			claim: CapacityClaim{
-				Claims: []ResourceClaim{
-					{
-						Driver: "kubelet",
-						Capacities: []CapacityRequest{
-							{
-								Capacity: "pods",
-								Counter:  &ResourceCounterRequest{Request: 1},
-							},
-							{
-								Capacity: "containers",
-								Counter:  &ResourceCounterRequest{Request: 1},
-							},
-						},
-					},
-				},
-			},
+			claim: CapacityClaim{Core: rcOneContainerPod},
 			expectedAllocation: &NodeCapacityAllocation{
 				NodeName: "shape-zero-000",
 				Allocations: []CapacityAllocation{
@@ -46,6 +59,13 @@ func TestScheduleWithFullAvailability(t *testing.T) {
 					},
 				},
 			},
+		},
+		"no resources for driver": {
+			claim: CapacityClaim{
+				Core:     rcOneContainerPod,
+				Extended: []ResourceClaim{rcOneFooCore2GiFooMemory},
+			},
+			expectedAllocation: nil,
 		},
 	}
 

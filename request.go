@@ -5,7 +5,8 @@ import (
 )
 
 type CapacityClaim struct {
-	Claims     []ResourceClaim      `json:"claims"`
+	Core       ResourceClaim        `json:"core"`
+	Extended   []ResourceClaim      `json:"extended, omitempty"`
 	Topologies []TopologyConstraint `json:"topologies,omitempty"`
 }
 

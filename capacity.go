@@ -14,7 +14,7 @@ type NodeResources struct {
 type ResourcePool struct {
 	Driver string `json:"driver"`
 
-	// attributes for constraints at the pool
+	// attributes for constraints at the pool level
 	Attributes []Attribute `json:"attributes,omitempty"`
 
 	Resources []Resource `json:"resources,omitempty"`
@@ -46,6 +46,13 @@ type Attribute struct {
 
 type SemVer string
 
+// This prototype does not address limitations of actuation. We
+// would need to do that in the real deal. For example, today
+// topology acuation is controlled at the node level, so it is not
+// something we can just arbitrarily assign for any node. Instead,
+// we need to look at the static topology policy of the node, and evaluate
+// if that node assignment can meet the topology constraint in the request
+// based upon that policy.
 type Topology struct {
 	Name      string `json:"name"`
 	Type      string `json:"type"`
