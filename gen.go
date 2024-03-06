@@ -39,8 +39,17 @@ type numaGen struct {
 	cpu, mem string
 }
 
-func genCorePool(os, kernel, hw string, numa ...numaGen) ResourcePool {
-	var capacities []Capacity
+func genCorePool(node, os, kernel, hw string, numa ...numaGen) ResourcePool {
+	capacities := []Capacity{
+		{
+			Name:    "pods",
+			Counter: &ResourceCounter{100},
+		},
+		{
+			Name:    "containers",
+			Counter: &ResourceCounter{1000},
+		},
+	}
 	for i, n := range numa {
 		capacities = append(capacities, genCoreNumaNode(i, resource.MustParse(n.cpu), resource.MustParse(n.mem))...)
 	}
@@ -53,7 +62,14 @@ func genCorePool(os, kernel, hw string, numa ...numaGen) ResourcePool {
 			{Name: "hardware-platform", StringValue: &hw},
 		},
 		Resources: []Resource{{
-			Name:       "node",
+			Name: "node",
+			Topologies: []Topology{
+				{
+					Name:      node,
+					Type:      "node",
+					Aggregate: false,
+				},
+			},
 			Capacities: capacities,
 		}},
 	}
@@ -108,13 +124,13 @@ func genFooResources(start, num int, model, version, conn, net, mem string, foos
 // shape zero are compute nodes with no specialized resources
 // They have 16 CPUs and 128Gi divided equally in two NUMA nodes
 func genShapeZero(num int) []NodeResources {
-	core := genCorePool("linux", "5.15.0-1046-gcp", "x86_64", numaGen{"8", "64Gi"}, numaGen{"8", "64Gi"})
 
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
+		node := fmt.Sprintf("shape-zero-%03d", i)
 		nrs = append(nrs, NodeResources{
-			Name: fmt.Sprintf("shape-zero-%03d", i),
-			Core: core,
+			Name: node,
+			Core: genCorePool(node, "linux", "5.15.0-1046-gcp", "x86_64", numaGen{"8", "64Gi"}, numaGen{"8", "64Gi"}),
 		})
 	}
 
@@ -133,16 +149,14 @@ func genShapeOne(num int) []NodeResources {
 		},
 	}
 
-	core := genCorePool("linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"})
-
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
-
+		node := fmt.Sprintf("shape-one-%03d", i)
 		pool.Resources = genFooResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-one-%03d", i), "64Gi", 8, 16)
 
 		nrs = append(nrs, NodeResources{
-			Name:     fmt.Sprintf("shape-one-%03d", i),
-			Core:     core,
+			Name:     node,
+			Core:     genCorePool(node, "linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"}),
 			Extended: []ResourcePool{pool},
 		})
 	}
@@ -161,15 +175,14 @@ func genShapeTwo(num, nets int) []NodeResources {
 			{Name: "driver-version", SemVerValue: ptr(SemVer("7.8.2-gen8"))},
 		},
 	}
-	core := genCorePool("linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"})
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
-
+		node := fmt.Sprintf("shape-two-%03d", i)
 		pool.Resources = genFooResources(0, 8, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-two-%02d", i%nets), "256Gi", 16, 64)
 
 		nrs = append(nrs, NodeResources{
-			Name:     fmt.Sprintf("shape-two-%03d", i),
-			Core:     core,
+			Name:     node,
+			Core:     genCorePool(node, "linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"}),
 			Extended: []ResourcePool{pool},
 		})
 	}
@@ -185,16 +198,15 @@ func genShapeThree(num, nets int) []NodeResources {
 		},
 	}
 
-	core := genCorePool("linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"})
-
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
+		node := fmt.Sprintf("shape-three-%03d", i)
 		pool.Resources = genFooResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-three-%03d", i), "64Gi", 8, 16)
 		pool.Resources = append(pool.Resources, genFooResources(4, 4, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-three-%02d", i%nets), "256Gi", 16, 64)...)
 
 		nrs = append(nrs, NodeResources{
 			Name:     fmt.Sprintf("shape-three-%03d", i),
-			Core:     core,
+			Core:     genCorePool(node, "linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"}),
 			Extended: []ResourcePool{pool},
 		})
 	}
