@@ -28,7 +28,24 @@ func TestScheduleWithFullAvailability(t *testing.T) {
 					},
 				},
 			},
-			expectedAllocation: nil,
+			expectedAllocation: &NodeCapacityAllocation{
+				NodeName: "shape-zero-000",
+				Allocations: []CapacityAllocation{
+					{
+						Driver: "kubelet",
+						Capacities: []CapacityRequest{
+							{
+								Capacity: "pods",
+								Counter:  &ResourceCounterRequest{Request: 1},
+							},
+							{
+								Capacity: "containers",
+								Counter:  &ResourceCounterRequest{Request: 1},
+							},
+						},
+					},
+				},
+			},
 		},
 	}
 
