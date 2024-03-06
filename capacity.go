@@ -1,5 +1,9 @@
 package main
 
+import (
+	"k8s.io/apimachinery/pkg/api/resource"
+)
+
 type NodeResources struct {
 	Name string `json:"name"`
 
@@ -8,7 +12,7 @@ type NodeResources struct {
 }
 
 type ResourcePool struct {
-	Driver string
+	Driver string `json:"driver"`
 
 	// attributes for constraints at the pool
 	Attributes []Attribute `json:"attributes,omitempty"`
@@ -17,7 +21,7 @@ type ResourcePool struct {
 }
 
 type Resource struct {
-	Name string
+	Name string `json:"name"`
 
 	// attributes for constraints
 	Attributes []Attribute `json:"attributes,omitempty"`
@@ -34,13 +38,12 @@ type Attribute struct {
 	Name string `json:"name"`
 
 	// One of the following:
-	StringValue   *string   `json:"stringValue,omitempty"`
-	IntValue      *int      `json:"intValue,omitempty"`
-	QuantityValue *Quantity `json:"quantityValue,omitempty"`
-	SemVerValue   *SemVer   `json:"semVerValue,omitempty"`
+	StringValue   *string            `json:"stringValue,omitempty"`
+	IntValue      *int               `json:"intValue,omitempty"`
+	QuantityValue *resource.Quantity `json:"quantityValue,omitempty"`
+	SemVerValue   *SemVer            `json:"semVerValue,omitempty"`
 }
 
-type Quantity string
 type SemVer string
 
 type Topology struct {
@@ -73,6 +76,6 @@ type ResourceCounter struct {
 }
 
 type ResourceBlock struct {
-	Size     Quantity `json:"size"`
-	Capacity Quantity `json:"capacity"`
+	Size     resource.Quantity `json:"size"`
+	Capacity resource.Quantity `json:"capacity"`
 }

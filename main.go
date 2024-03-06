@@ -1,8 +1,8 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+	"sigs.k8s.io/yaml"
 )
 
 func main() {
@@ -11,6 +11,6 @@ func main() {
 	nrs = append(nrs, genShapeTwo(8, 2)...)
 	nrs = append(nrs, genShapeThree(8, 4)...)
 
-	b, _ := json.MarshalIndent(nrs, "", "    ")
+	b, _ := yaml.Marshal(nrs)
 	fmt.Println(string(b))
 }

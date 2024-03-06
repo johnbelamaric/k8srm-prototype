@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func ptr[T any](val T) *T {
@@ -9,11 +10,11 @@ func ptr[T any](val T) *T {
 	return &v
 }
 
-func genCoreNumaNode(num int, cpu, mem Quantity) []Capacity {
+func genCoreNumaNode(num int, cpu, mem resource.Quantity) []Capacity {
 	return []Capacity{
 		{
 			Name:  "cpus",
-			Block: &ResourceBlock{"10mi", cpu},
+			Block: &ResourceBlock{resource.MustParse("10m"), cpu},
 			Topologies: []Topology{
 				{
 					Name:      fmt.Sprintf("numa-%d", num),
@@ -24,7 +25,7 @@ func genCoreNumaNode(num int, cpu, mem Quantity) []Capacity {
 		},
 		{
 			Name:  "memory",
-			Block: &ResourceBlock{"1Mi", mem},
+			Block: &ResourceBlock{resource.MustParse("1Mi"), mem},
 			Topologies: []Topology{{
 				Name:      fmt.Sprintf("numa-%d", num),
 				Type:      "numa",
@@ -35,13 +36,13 @@ func genCoreNumaNode(num int, cpu, mem Quantity) []Capacity {
 }
 
 type numaGen struct {
-	cpu, mem Quantity
+	cpu, mem string
 }
 
 func genCorePool(os, kernel, hw string, numa ...numaGen) ResourcePool {
 	var capacities []Capacity
 	for i, n := range numa {
-		capacities = append(capacities, genCoreNumaNode(i, n.cpu, n.mem)...)
+		capacities = append(capacities, genCoreNumaNode(i, resource.MustParse(n.cpu), resource.MustParse(n.mem))...)
 	}
 
 	return ResourcePool{
@@ -66,7 +67,7 @@ func genFooResources(start, num int, model, version, conn, net, mem string, foos
 			Attributes: []Attribute{
 				{Name: "model", StringValue: &model},
 				{Name: "firmware-version", SemVerValue: ptr(SemVer(version))},
-				{Name: "net-speed", QuantityValue: ptr(Quantity(conn))},
+				{Name: "net-speed", QuantityValue: ptr(resource.MustParse(conn))},
 			},
 			Topologies: []Topology{
 				{
@@ -92,7 +93,7 @@ func genFooResources(start, num int, model, version, conn, net, mem string, foos
 				},
 				{
 					Name:  "foo-memory",
-					Block: &ResourceBlock{"256Mi", Quantity(mem)},
+					Block: &ResourceBlock{resource.MustParse("256Mi"), resource.MustParse(mem)},
 				},
 				{
 					Name:    "vfs",
