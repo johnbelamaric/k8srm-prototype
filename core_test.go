@@ -20,6 +20,28 @@ var rcOneContainerPod = ResourceClaim{
 	},
 }
 
+var rcOneContainerPodCPUMem = ResourceClaim{
+	Driver: "kubelet",
+	Capacities: []CapacityRequest{
+		{
+			Capacity: "pods",
+			Counter:  &ResourceCounterRequest{Request: 1},
+		},
+		{
+			Capacity: "containers",
+			Counter:  &ResourceCounterRequest{Request: 1},
+		},
+		{
+			Capacity: "cpu",
+			Quantity: &ResourceQuantityRequest{Request: resource.MustParse("7127m")},
+		},
+		{
+			Capacity: "memory",
+			Quantity: &ResourceQuantityRequest{Request: resource.MustParse("8Gi")},
+		},
+	},
+}
+
 var rcOneFooCore2GiFooMemory = ResourceClaim{
 	Driver: "vendorFoo.com/foozer",
 	Capacities: []CapacityRequest{
@@ -54,6 +76,35 @@ func TestScheduleForCore(t *testing.T) {
 							{
 								Capacity: "containers",
 								Counter:  &ResourceCounterRequest{Request: 1},
+							},
+						},
+					},
+				},
+			},
+		},
+		"single pod, single container, with CPU and memory": {
+			claim: CapacityClaim{Core: rcOneContainerPodCPUMem},
+			expectedAllocation: &NodeCapacityAllocation{
+				NodeName: "shape-zero-000",
+				Allocations: []CapacityAllocation{
+					{
+						Driver: "kubelet",
+						Capacities: []CapacityRequest{
+							{
+								Capacity: "pods",
+								Counter:  &ResourceCounterRequest{Request: 1},
+							},
+							{
+								Capacity: "containers",
+								Counter:  &ResourceCounterRequest{Request: 1},
+							},
+							{
+								Capacity: "cpu",
+								Quantity: &ResourceQuantityRequest{Request: resource.MustParse("7130m")},
+							},
+							{
+								Capacity: "memory",
+								Quantity: &ResourceQuantityRequest{Request: resource.MustParse("8Gi")},
 							},
 						},
 					},

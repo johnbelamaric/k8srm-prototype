@@ -13,7 +13,7 @@ func ptr[T any](val T) *T {
 func genCoreNumaNode(num int, cpu, mem resource.Quantity) []Capacity {
 	return []Capacity{
 		{
-			Name:  "cpus",
+			Name:  "cpu",
 			Block: &ResourceBlock{resource.MustParse("10m"), cpu},
 			Topologies: []Topology{
 				{

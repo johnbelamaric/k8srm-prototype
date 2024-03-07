@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"gopkg.in/inf.v0"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"math/big"
 )
 
 type NodeResources struct {
@@ -100,30 +102,38 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityRequest, error) 
 	}
 
 	if c.Block != nil && cr.Quantity != nil {
-		realRequest, ok := cr.Quantity.Request.AsInt64()
-		if !ok {
-			return nil, fmt.Errorf("could not convert %v to int64", cr.Quantity.Request)
-		}
-		block, ok := c.Block.Size.AsInt64()
-		if !ok {
-			return nil, fmt.Errorf("could not convert %v to int64", c.Block.Size)
-		}
-		remainder := realRequest % block
-		if remainder > 0 {
-			realRequest = realRequest + block - remainder
-		}
-		capQuant, ok := c.Block.Capacity.AsInt64()
-		if !ok {
-			return nil, fmt.Errorf("could not convert %v to int64", c.Block.Capacity)
-		}
-		if realRequest <= capQuant {
+		realRequest := roundToBlock(cr.Quantity.Request, c.Block.Size)
+		if realRequest.Cmp(c.Block.Capacity) <= 0 {
 			return &CapacityRequest{
 				Capacity: cr.Capacity,
-				Quantity: &ResourceQuantityRequest{*resource.NewQuantity(realRequest, "")},
+				Quantity: &ResourceQuantityRequest{realRequest},
 			}, nil
 		}
 		return nil, nil
 	}
 
 	return nil, fmt.Errorf("invalid allocation request of %v from %v", cr, c)
+}
+
+func roundToBlock(q, size resource.Quantity) resource.Quantity {
+	qi := qtoi(q)
+	si := qtoi(size)
+	zero := big.NewInt(0)
+	remainder := big.NewInt(0)
+	remainder.Rem(qi, si)
+	if remainder.Cmp(zero) > 0 {
+		qi.Add(qi, si).Sub(qi, remainder)
+	}
+	// canonicalize and return
+	return resource.MustParse(resource.NewDecimalQuantity(*inf.NewDecBig(qi, inf.Scale(-1*resource.Nano)), q.Format).String())
+}
+
+// force to nano scale and return as int
+func qtoi(q resource.Quantity) *big.Int {
+	_, scale := q.AsCanonicalBytes(nil)
+	d := q.AsDec()
+	d.SetScale(inf.Scale(int32(resource.Nano) - scale))
+	i := big.NewInt(0)
+	i.SetString(d.String(), 10)
+	return i
 }
