@@ -84,29 +84,6 @@ func Allocate(nr NodeResources, cc *CapacityClaim) NodeCapacityAllocation {
 			return result
 		}
 
-		/* Not ready to consider topology yet
-		*
-		// see what topology constraints we need to consider
-		// here, we combine the topology constraints from the capacity claim (which
-		// apply to all resources), as well as the constraint for this particular claim
-		topoConstraints := make(map[string]bool)
-		for _, t := range cc.Topologies {
-			topoConstraints[t.Type] = true
-		}
-		for _, t := range c.Topologies {
-			topoConstraints[t.Type] = true
-		}
-
-		// flatten capacities when they are aggregatable across
-		// topologies
-		var flat []Capacity
-		for _, r := range pool.Resources {
-			for _, capacity := range r.Capacities {
-				flat = append(flat, capacity)
-			}
-		}
-		*/
-
 		// find the first resource that can satisfy the claim
 		var failures []string
 		for _, r := range resources {
@@ -125,7 +102,9 @@ func Allocate(nr NodeResources, cc *CapacityClaim) NodeCapacityAllocation {
 		}
 		if len(ca.Capacities) == 0 {
 			result.FailureReason = fmt.Sprintf("no resource with sufficient capacity for driver %q:\n%s", c.Driver, strings.Join(failures, "\n"))
+			return result
 		}
+		result.Allocations = append(result.Allocations, ca)
 	}
 	return result
 }
@@ -135,7 +114,7 @@ func Schedule(available []NodeResources, cc *CapacityClaim) *NodeCapacityAllocat
 	var failures []string
 	for _, nr := range available {
 		allocation := Allocate(nr, cc)
-		if len(allocation.Allocations) > 0 {
+		if allocation.FailureReason == "" && len(allocation.Allocations) > 0 {
 			return &allocation
 		}
 		failures = append(failures, allocation.NodeName+": "+allocation.FailureReason)
@@ -147,6 +126,52 @@ func Schedule(available []NodeResources, cc *CapacityClaim) *NodeCapacityAllocat
 	return nil
 }
 
-func (r *Resource) AllocateCapacity(c ResourceClaim) ([]CapacityRequest, string) {
-	return nil, "not implemented"
+func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityRequest, string) {
+	/* Not ready to consider topology yet
+	*
+	// see what topology constraints we need to consider
+	// here, we combine the topology constraints from the capacity claim (which
+	// apply to all resources), as well as the constraint for this particular claim
+	topoConstraints := make(map[string]bool)
+	for _, t := range cc.Topologies {
+		topoConstraints[t.Type] = true
+	}
+	for _, t := range c.Topologies {
+		topoConstraints[t.Type] = true
+	}
+
+	// flatten capacities when they are aggregatable across
+	// topologies
+	var flat []Capacity
+	for _, r := range pool.Resources {
+		for _, capacity := range r.Capacities {
+			flat = append(flat, capacity)
+		}
+	}
+	*/
+
+	var result []CapacityRequest
+	// index the capacities in the resource
+	capacityMap := make(map[string]Capacity)
+	for _, c := range r.Capacities {
+		capacityMap[c.Name] = c
+	}
+
+	// evaluate each claim capacity and see if we can satisfy it
+	for _, cr := range rc.Capacities {
+		availCap, ok := capacityMap[cr.Capacity]
+		if !ok {
+			return nil, fmt.Sprintf("no capacity %q present in resource %q", cr.Capacity, r.Name)
+		}
+		allocReq, err := availCap.AllocateRequest(cr)
+		if err != nil {
+			return nil, fmt.Sprintf("error evaluating capacity %q in resource %q: %s", cr.Capacity, r.Name, err)
+		}
+		if allocReq == nil {
+			return nil, fmt.Sprintf("insufficient capacity %q present in resource %q", cr.Capacity, r.Name)
+		}
+		result = append(result, *allocReq)
+	}
+
+	return result, ""
 }

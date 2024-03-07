@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -85,4 +86,44 @@ type ResourceCounter struct {
 type ResourceBlock struct {
 	Size     resource.Quantity `json:"size"`
 	Capacity resource.Quantity `json:"capacity"`
+}
+
+func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityRequest, error) {
+	if c.Counter != nil && cr.Counter != nil {
+		if cr.Counter.Request <= c.Counter.Capacity {
+			return &CapacityRequest{
+				Capacity: cr.Capacity,
+				Counter:  &ResourceCounterRequest{cr.Counter.Request},
+			}, nil
+		}
+		return nil, nil
+	}
+
+	if c.Block != nil && cr.Quantity != nil {
+		realRequest, ok := cr.Quantity.Request.AsInt64()
+		if !ok {
+			return nil, fmt.Errorf("could not convert %v to int64", cr.Quantity.Request)
+		}
+		block, ok := c.Block.Size.AsInt64()
+		if !ok {
+			return nil, fmt.Errorf("could not convert %v to int64", c.Block.Size)
+		}
+		remainder := realRequest % block
+		if remainder > 0 {
+			realRequest = realRequest + block - remainder
+		}
+		capQuant, ok := c.Block.Capacity.AsInt64()
+		if !ok {
+			return nil, fmt.Errorf("could not convert %v to int64", c.Block.Capacity)
+		}
+		if realRequest <= capQuant {
+			return &CapacityRequest{
+				Capacity: cr.Capacity,
+				Quantity: &ResourceQuantityRequest{*resource.NewQuantity(realRequest, "")},
+			}, nil
+		}
+		return nil, nil
+	}
+
+	return nil, fmt.Errorf("invalid allocation request of %v from %v", cr, c)
 }
