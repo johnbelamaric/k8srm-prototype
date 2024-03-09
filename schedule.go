@@ -13,7 +13,7 @@ type NodeCapacityAllocation struct {
 }
 
 func (nca *NodeCapacityAllocation) Success() bool {
-	return len(nca.Allocations) > 0
+	return len(nca.FailureDetails) == 0
 }
 
 func (nca *NodeCapacityAllocation) FailureReason() string {
@@ -127,7 +127,6 @@ func (nr *NodeResources) AllocateForPod(cc *PodCapacityClaim) NodeCapacityAlloca
 			if !poolResult.Success() {
 				continue
 			}
-
 			if best == nil || best.Score < poolResult.Score {
 				best = &poolResult
 			}
@@ -196,6 +195,8 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 			continue
 		}
 
+		//TODO(johnbelamaric): loop through all instead of using first, add scoring
+		result.Score = 1
 		result.Capacities = capacities
 		break
 	}
@@ -280,7 +281,7 @@ func SchedulePod(available []NodeResources, cc *PodCapacityClaim) *NodeCapacityA
 
 	fmt.Printf("Could not schedule:\n")
 	for _, nca := range results {
-		fmt.Println(nca.FailureReason())
+		fmt.Printf("%s: %s\n", nca.NodeName, nca.FailureReason())
 		if len(nca.FailureDetails) > 0 {
 			fmt.Printf(" - %s\n", strings.Join(nca.FailureDetails, "\n - "))
 		}

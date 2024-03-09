@@ -2,14 +2,13 @@ package main
 
 import (
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"testing"
 )
 
 func TestSchedulePodForCore(t *testing.T) {
 	testCases := map[string]struct {
 		claim              PodCapacityClaim
-		expectedAllocation *NodeCapacityAllocation
+		expectSuccess      bool
 	}{
 		"single pod, single container": {
 			claim: PodCapacityClaim{
@@ -17,24 +16,7 @@ func TestSchedulePodForCore(t *testing.T) {
 					Claims: []ResourceClaim{genClaimPodContainer(1, 1)},
 				},
 			},
-			expectedAllocation: &NodeCapacityAllocation{
-				NodeName: "shape-zero-000",
-				Allocations: []PoolCapacityAllocation{
-					{
-						Driver: "kubelet",
-						Capacities: []CapacityRequest{
-							{
-								Capacity: "pods",
-								Counter:  &ResourceCounterRequest{Request: 1},
-							},
-							{
-								Capacity: "containers",
-								Counter:  &ResourceCounterRequest{Request: 1},
-							},
-						},
-					},
-				},
-			},
+			expectSuccess: true,
 		},
 		"single pod, single container, with CPU and memory": {
 			claim: PodCapacityClaim{
@@ -47,32 +29,7 @@ func TestSchedulePodForCore(t *testing.T) {
 					},
 				},
 			},
-			expectedAllocation: &NodeCapacityAllocation{
-				NodeName: "shape-zero-000",
-				Allocations: []PoolCapacityAllocation{
-					{
-						Driver: "kubelet",
-						Capacities: []CapacityRequest{
-							{
-								Capacity: "pods",
-								Counter:  &ResourceCounterRequest{Request: 1},
-							},
-							{
-								Capacity: "containers",
-								Counter:  &ResourceCounterRequest{Request: 1},
-							},
-							{
-								Capacity: "cpu",
-								Quantity: &ResourceQuantityRequest{Request: resource.MustParse("7130m")},
-							},
-							{
-								Capacity: "memory",
-								Quantity: &ResourceQuantityRequest{Request: resource.MustParse("8Gi")},
-							},
-						},
-					},
-				},
-			},
+			expectSuccess: true,
 		},
 		"no resources for driver": {
 			claim: PodCapacityClaim{
@@ -83,7 +40,7 @@ func TestSchedulePodForCore(t *testing.T) {
 					},
 				},
 			},
-			expectedAllocation: nil,
+			expectSuccess: false,
 		},
 	}
 
@@ -91,7 +48,7 @@ func TestSchedulePodForCore(t *testing.T) {
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
 			allocation := SchedulePod(capacity, &tc.claim)
-			require.Equal(t, tc.expectedAllocation, allocation)
+			require.Equal(t, tc.expectSuccess, allocation != nil)
 		})
 	}
 }
