@@ -6,10 +6,10 @@ import (
 )
 
 func main() {
-	nrs := genShapeZero(4)
-	nrs = append(nrs, genShapeOne(4)...)
-	nrs = append(nrs, genShapeTwo(8, 2)...)
-	nrs = append(nrs, genShapeThree(8, 4)...)
+	nrs := genCapShapeZero(4)
+	nrs = append(nrs, genCapShapeOne(4)...)
+	nrs = append(nrs, genCapShapeTwo(8, 2)...)
+	nrs = append(nrs, genCapShapeThree(8, 4)...)
 
 	b, _ := yaml.Marshal(nrs)
 	fmt.Println(string(b))

@@ -7,6 +7,9 @@ import (
 	"math/big"
 )
 
+// This prototype models nodes as a collection of resource
+// pools, each populated by resources, which in turn hold
+// capacities.
 type NodeResources struct {
 	Name string `json:"name"`
 

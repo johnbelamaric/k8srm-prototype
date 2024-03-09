@@ -6,21 +6,80 @@ import (
 )
 
 type NodeCapacityAllocation struct {
-	NodeName      string               `json:"nodeName"`
-	Allocations   []CapacityAllocation `json:"allocations"`
-	FailureReason string               `json:"failureReason"`
+	NodeName       string                   `json:"nodeName"`
+	Allocations    []PoolCapacityAllocation `json:"allocations,omitempty"`
+	FailureSummary string                   `json:"failureSummary,omitempty"`
+	FailureDetails []string                 `json:"failureDetails,omitempty"`
 }
 
-type CapacityAllocation struct {
-	Driver     string               `json:"driver"`
-	Capacities []CapacityRequest    `json:"capacities"`
-	Topologies []TopologyAssignment `json:"topologies,omitempty"`
+func (nca *NodeCapacityAllocation) Success() bool {
+	return len(nca.Allocations) > 0
 }
 
+func (nca *NodeCapacityAllocation) FailureReason() string {
+	if nca.Success() {
+		return ""
+	}
+
+	if nca.FailureSummary != "" {
+		return nca.FailureSummary
+	}
+
+	if len(nca.FailureDetails) > 0 {
+		return fmt.Sprintf("could not allocate capacity from any of %d pools", len(nca.FailureDetails))
+	}
+
+	return "unknown"
+}
+
+func (nca *NodeCapacityAllocation) Score() int {
+	if !nca.Success() {
+		return 0
+	}
+
+	score := 0
+	for _, pca := range nca.Allocations {
+		score += pca.Score
+	}
+
+	return score
+}
+
+type PoolCapacityAllocation struct {
+	Driver         string               `json:"driver"`
+	ResourceName   string               `json:"resourceName"`
+	Capacities     []CapacityRequest    `json:"capacities"`
+	Topologies     []TopologyAssignment `json:"topologies,omitempty"`
+	Score          int
+	FailureSummary string
+	FailureDetails []string
+}
+
+func (pca *PoolCapacityAllocation) Success() bool {
+	return len(pca.Capacities) > 0
+}
+
+func (pca *PoolCapacityAllocation) FailureReason() string {
+	if pca.Success() {
+		return ""
+	}
+
+	if pca.FailureSummary != "" {
+		return pca.FailureSummary
+	}
+
+	if len(pca.FailureDetails) > 0 {
+		return fmt.Sprintf("could not allocate capacity from any of %d resources", len(pca.FailureDetails))
+	}
+
+	return "unknown"
+}
+
+// TODO:(johnbelamaric) open question
 // if there is no topology constraint in the request, and
 // the topology is aggregatable, we do not need to assign
 // a specific topology
-// But if we don't, then we can't fulfill requests with topology constraints
+// But if we don't, then we can't fulfill other requests with topology constraints
 // at least until the actuation engine that *does* do topology assignments
 // kicks in.
 type TopologyAssignment struct {
@@ -34,96 +93,120 @@ func Available(capacity []NodeResources, allocation *NodeCapacityAllocation) []N
 	return capacity
 }
 
-// Allocate evaluates if a node can fit a claim, and if so, returns
-// the allocation (including topology assignments). If not, returns
-// the first reason why
+// AllocateForPod evaluates if a node can fit a pod claim, and if so, returns
+// the allocation (including topology assignments) and a score.
+// If not, returns the reason why the allocation is impossible.
 
-func Allocate(nr NodeResources, cc *CapacityClaim) NodeCapacityAllocation {
+func (nr *NodeResources) AllocateForPod(cc *PodCapacityClaim) NodeCapacityAllocation {
 	result := NodeCapacityAllocation{NodeName: nr.Name}
 
-	// don't really treat core differently
-	claims := []ResourceClaim{cc.Core}
-	claims = append(claims, cc.Extended...)
-
-	// index our pools
-	pools := make(map[string]ResourcePool)
-	pools[nr.Core.Driver] = nr.Core
-	for _, p := range nr.Extended {
-		pools[p.Driver] = p
+	// for now, don't really treat core differently
+	// but we will have to when we incorporate topology
+	var claims []ResourceClaim
+	claims = append(claims, cc.PodClaim.Claims...)
+	for _, contClaim := range cc.ContainerClaims {
+		claims = append(claims, contClaim.Claims...)
 	}
 
-	// check if each claim can be satisfied
+	// find the best pool to satisfy each claim
+	// TODO(johnbelamaric): fix this so the as each claim is sastisfied,
+	// we reduce the pool capacity. Right now if there are multiple claims
+	// for the same pool, we could double-allocate
 	for _, c := range claims {
-		ca := CapacityAllocation{Driver: c.Driver}
+		var pools []ResourcePool
+		pools = append(pools, nr.Core)
+		pools = append(pools, nr.Extended...)
 
-		// find the pool corresponding to this claim
-		pool, ok := pools[c.Driver]
-		if !ok || len(pool.Resources) == 0 {
-			// this node cannot satisfy this claim, as
-			// it has no resources for this driver
-			result.FailureReason = fmt.Sprintf("no resources for driver %q", c.Driver)
-			return result
-		}
+		var poolResults []*PoolCapacityAllocation
+		var best *PoolCapacityAllocation
 
-		// filter out resources that do not meet the constraints
-		var resources []Resource
-		for _, r := range pool.Resources {
-			pass, err := r.MeetsConstraints(c.Constraints, pool.Attributes)
-			if err != nil {
-				result.FailureReason = fmt.Sprintf("error evaluating driver %q resource %q against constraints %v: %s",
-					c.Driver, r.Name, c.Constraints, err)
-				return result
-			}
-			if pass {
-				resources = append(resources, r)
-			}
-		}
-
-		if len(resources) == 0 {
-			result.FailureReason = fmt.Sprintf("no driver %q resources meet the constraints %v", c.Driver, c.Constraints)
-			return result
-		}
-
-		// find the first resource that can satisfy the claim
-		var failures []string
-		for _, r := range resources {
-			capacities, reason := r.AllocateCapacity(c)
-			if len(capacities) == 0 && reason == "" {
-				reason = "unknown"
-			}
-
-			if reason != "" {
-				failures = append(failures, fmt.Sprintf("  - %s: %s", r.Name, reason))
+		// find the best pool that can satisfy the claim
+		for _, pool := range pools {
+			poolResult := pool.AllocateCapacity(c)
+			poolResults = append(poolResults, &poolResult)
+			if !poolResult.Success() {
 				continue
 			}
 
-			ca.Capacities = capacities
-			break
+			if best == nil || best.Score < poolResult.Score {
+				best = &poolResult
+			}
 		}
-		if len(ca.Capacities) == 0 {
-			result.FailureReason = fmt.Sprintf("no resource with sufficient capacity for driver %q:\n%s", c.Driver, strings.Join(failures, "\n"))
+		if best == nil {
+			result.FailureSummary = fmt.Sprintf("claim driver %q: no resource with sufficient capacity in any pool", c.Driver)
+			for poolIdx, pca := range poolResults {
+				poolName := "core pool"
+				if poolIdx > 0 {
+					poolName = fmt.Sprintf("extended pool %d", poolIdx-1)
+				}
+				result.FailureDetails = append(result.FailureDetails,
+					fmt.Sprintf("%s: %s", poolName, pca.FailureReason()))
+			}
+			// TODO(johnbelamaric): restructure to try every claim even if one fails
 			return result
 		}
-		result.Allocations = append(result.Allocations, ca)
+		result.Allocations = append(result.Allocations, *best)
 	}
 	return result
 }
 
-// Schedule finds the first available node that can accomodate the claim
-func Schedule(available []NodeResources, cc *CapacityClaim) *NodeCapacityAllocation {
+// AllocateCapacity will evaluate a resource claim against the pool, and
+// return the options for making those allocations against the pools resources.
+func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocation {
+	result := PoolCapacityAllocation{Driver: pool.Driver}
+
+	if rc.Driver != "" && rc.Driver != pool.Driver {
+		result.FailureSummary = "driver mismatch"
+		return result
+	}
+
 	var failures []string
-	for _, nr := range available {
-		allocation := Allocate(nr, cc)
-		if allocation.FailureReason == "" && len(allocation.Allocations) > 0 {
-			return &allocation
+
+	// filter out resources that do not meet the constraints
+	var resources []Resource
+	for _, r := range pool.Resources {
+		pass, err := r.MeetsConstraints(rc.Constraints, pool.Attributes)
+		if err != nil {
+			result.FailureSummary = fmt.Sprintf("error evaluating driver %q resource %q against constraints %v: %s",
+				pool.Driver, r.Name, rc.Constraints, err)
+			return result
 		}
-		failures = append(failures, allocation.NodeName+": "+allocation.FailureReason)
+		if !pass {
+			failures = append(failures, fmt.Sprintf("%s: does not meet constraints", r.Name))
+			continue
+		}
+
+		resources = append(resources, r)
 	}
-	fmt.Printf("Could not schedule:\n")
-	for _, f := range failures {
-		fmt.Printf("- %s\n", f)
+
+	if len(resources) == 0 {
+		result.FailureSummary = fmt.Sprintf("no driver %q resources meet the constraints %v", pool.Driver, rc.Constraints)
+		return result
 	}
-	return nil
+
+	// find the first resource that can satisfy the claim
+	for _, r := range resources {
+		capacities, reason := r.AllocateCapacity(rc)
+		if len(capacities) == 0 && reason == "" {
+			reason = "unknown"
+		}
+
+		if reason != "" {
+			failures = append(failures, fmt.Sprintf("%s: %s", r.Name, reason))
+			continue
+		}
+
+		result.Capacities = capacities
+		break
+	}
+
+	if len(result.Capacities) == 0 {
+		result.FailureSummary = fmt.Sprintf("no resource with sufficient capacity for driver %q", pool.Driver)
+		result.FailureDetails = failures
+		return result
+	}
+
+	return result
 }
 
 func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityRequest, string) {
@@ -174,4 +257,33 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityRequest, string
 	}
 
 	return result, ""
+}
+
+// SchedulePod finds the first available node that can accomodate the pod claim
+func SchedulePod(available []NodeResources, cc *PodCapacityClaim) *NodeCapacityAllocation {
+	var results []*NodeCapacityAllocation
+	var best *NodeCapacityAllocation
+	for _, nr := range available {
+		nca := nr.AllocateForPod(cc)
+		results = append(results, &nca)
+		if !nca.Success() {
+			continue
+		}
+		if best == nil || best.Score() < nca.Score() {
+			best = &nca
+		}
+	}
+
+	if best != nil {
+		return best
+	}
+
+	fmt.Printf("Could not schedule:\n")
+	for _, nca := range results {
+		fmt.Println(nca.FailureReason())
+		if len(nca.FailureDetails) > 0 {
+			fmt.Printf(" - %s\n", strings.Join(nca.FailureDetails, "\n - "))
+		}
+	}
+	return nil
 }
