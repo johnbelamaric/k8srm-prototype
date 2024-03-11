@@ -5,18 +5,32 @@ import (
 	"gopkg.in/inf.v0"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"math/big"
+	"sigs.k8s.io/yaml"
 )
 
 // This file contains all the functions for scheduling.
 
 // SchedulePod finds the best available node that can accomodate the pod claim
 func SchedulePod(available []NodeResources, pcc *PodCapacityClaim) *NodeCapacityAllocation {
-	var results []*NodeCapacityAllocation
 	var best *NodeCapacityAllocation
 	for _, nr := range available {
 		nca := nr.AllocatePodCapacityClaim(pcc)
-		results = append(results, &nca)
+
+		fmt.Printf("%s: %d\n", nca.NodeName, nca.Score())
+
 		if !nca.Success() {
+			var unsatisfied []CapacityClaimAllocation
+			for _, cca := range nca.CapacityClaimAllocations {
+				if cca.Success() {
+					continue
+				}
+				unsatisfied = append(unsatisfied, cca)
+			}
+
+			b, _ := yaml.Marshal(unsatisfied)
+			fmt.Println(string(b))
+			fmt.Println("---")
+
 			continue
 		}
 		if best == nil || best.Score() < nca.Score() {
@@ -28,10 +42,6 @@ func SchedulePod(available []NodeResources, pcc *PodCapacityClaim) *NodeCapacity
 		return best
 	}
 
-	fmt.Printf("Could not schedule:\n")
-	for _, nca := range results {
-		fmt.Printf("%s: %v", nca.NodeName, nca)
-	}
 	return nil
 }
 

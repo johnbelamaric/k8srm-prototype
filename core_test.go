@@ -65,13 +65,14 @@ func TestSchedulePodForCore(t *testing.T) {
 	capacity := genCapShapeZero(4)
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
-			allocation := SchedulePod(capacity, &tc.claim)
-			b, _ := yaml.Marshal(allocation)
+			fmt.Println("-------------------------------")
 			fmt.Println(tn)
-			fmt.Println("-------------------------------")
-			fmt.Println(string(b))
-			fmt.Println("-------------------------------")
+			fmt.Println("----")
+			allocation := SchedulePod(capacity, &tc.claim)
 			require.Equal(t, tc.expectSuccess, allocation != nil)
+			fmt.Println("----")
+			b, _ := yaml.Marshal(allocation)
+			fmt.Println(string(b))
 		})
 	}
 }
