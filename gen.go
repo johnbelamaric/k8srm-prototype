@@ -105,7 +105,7 @@ func genCapFooResources(start, num int, model, version, conn, net, mem, foos str
 			},
 			Capacities: []Capacity{
 				{
-					Name:    "foo-cores",
+					Name:     "foo-cores",
 					Quantity: &ResourceQuantity{resource.MustParse(foos)},
 				},
 				{

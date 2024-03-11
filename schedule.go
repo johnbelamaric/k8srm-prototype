@@ -5,6 +5,12 @@ import (
 	"strings"
 )
 
+// This prototype demonstrates allocating capacity from nodes,
+// adhering to the claim constraints and requests.
+// Currently, allocations are for a pod, and on a single node. However,
+// the general framework should be extensible across multi-pod workloads and
+// multi-node capacity.
+
 type NodeCapacityAllocation struct {
 	NodeName       string                   `json:"nodeName"`
 	Allocations    []PoolCapacityAllocation `json:"allocations,omitempty"`
@@ -13,7 +19,7 @@ type NodeCapacityAllocation struct {
 }
 
 func (nca *NodeCapacityAllocation) Success() bool {
-	return len(nca.FailureDetails) == 0
+	return nca.FailureSummary == "" && len(nca.FailureDetails) == 0
 }
 
 func (nca *NodeCapacityAllocation) FailureReason() string {
@@ -25,11 +31,7 @@ func (nca *NodeCapacityAllocation) FailureReason() string {
 		return nca.FailureSummary
 	}
 
-	if len(nca.FailureDetails) > 0 {
-		return fmt.Sprintf("could not allocate capacity from any of %d pools", len(nca.FailureDetails))
-	}
-
-	return "unknown"
+	return fmt.Sprintf("could not allocate capacity from any of %d pools", len(nca.FailureDetails))
 }
 
 func (nca *NodeCapacityAllocation) Score() int {
@@ -50,13 +52,13 @@ type PoolCapacityAllocation struct {
 	ResourceName   string               `json:"resourceName"`
 	Capacities     []CapacityRequest    `json:"capacities"`
 	Topologies     []TopologyAssignment `json:"topologies,omitempty"`
-	Score          int
-	FailureSummary string
-	FailureDetails []string
+	Score          int                  `json:"score"`
+	FailureSummary string               `json:"failureSummary,omitempty"`
+	FailureDetails []string             `json:"failureDetails,omitempty"`
 }
 
 func (pca *PoolCapacityAllocation) Success() bool {
-	return len(pca.Capacities) > 0
+	return pca.FailureSummary == "" && len(pca.FailureDetails) == 0 && len(pca.Capacities) > 0
 }
 
 func (pca *PoolCapacityAllocation) FailureReason() string {
@@ -68,11 +70,8 @@ func (pca *PoolCapacityAllocation) FailureReason() string {
 		return pca.FailureSummary
 	}
 
-	if len(pca.FailureDetails) > 0 {
-		return fmt.Sprintf("could not allocate capacity from any of %d resources", len(pca.FailureDetails))
-	}
+	return fmt.Sprintf("could not allocate capacity from any of %d resources", len(pca.FailureDetails))
 
-	return "unknown"
 }
 
 // TODO:(johnbelamaric) open question
