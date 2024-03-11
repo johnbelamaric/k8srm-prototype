@@ -65,7 +65,11 @@ type TopologyConstraint struct {
 type CapacityRequest struct {
 	Capacity string `json:"capacity"`
 
-	// one of
+	// one of these must be populated
+	// note that we only need two different type of capacity requests
+	// even though we have three different types of capacity models
+	// the ResourceQuantity and ResourceBlock capacity models both
+	// are drawn down on via the ResourceQuantityRequest type
 	Counter  *ResourceCounterRequest  `json:"counter,omitempty"`
 	Quantity *ResourceQuantityRequest `json:"quantity,omitempty"`
 }

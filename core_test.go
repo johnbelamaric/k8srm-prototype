@@ -7,8 +7,8 @@ import (
 
 func TestSchedulePodForCore(t *testing.T) {
 	testCases := map[string]struct {
-		claim              PodCapacityClaim
-		expectSuccess      bool
+		claim         PodCapacityClaim
+		expectSuccess bool
 	}{
 		"single pod, single container": {
 			claim: PodCapacityClaim{

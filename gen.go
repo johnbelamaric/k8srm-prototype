@@ -76,7 +76,7 @@ func genCapPrimaryPool(node, os, kernel, hw string, numa ...numaGen) ResourcePoo
 	}
 }
 
-func genCapFooResources(start, num int, model, version, conn, net, mem string, foos, vfs int64) []Resource {
+func genCapFooResources(start, num int, model, version, conn, net, mem, foos string, vfs int64) []Resource {
 	var resources []Resource
 	for i := start; i < (start + num); i++ {
 		resources = append(resources, Resource{
@@ -106,7 +106,7 @@ func genCapFooResources(start, num int, model, version, conn, net, mem string, f
 			Capacities: []Capacity{
 				{
 					Name:    "foo-cores",
-					Counter: &ResourceCounter{foos},
+					Quantity: &ResourceQuantity{resource.MustParse(foos)},
 				},
 				{
 					Name:  "foo-memory",
@@ -155,14 +155,14 @@ func genCapShapeOne(num int) []NodeResources {
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-one-%03d", i)
-		pool.Resources = genCapFooResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-one-%03d", i), "64Gi", 8, 16)
+		pool.Resources = genCapFooResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-one-%03d", i), "64Gi", "8", 16)
 
 		nrs = append(nrs, NodeResources{
-			Name:     node,
+			Name: node,
 			Pools: []ResourcePool{
-			    genCapPrimaryPool(node, "linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"}),
-			    pool,
-		    },
+				genCapPrimaryPool(node, "linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"}),
+				pool,
+			},
 		})
 	}
 
@@ -184,7 +184,7 @@ func genCapShapeTwo(num, nets int) []NodeResources {
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-two-%03d", i)
-		pool.Resources = genCapFooResources(0, 8, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-two-%02d", i%nets), "256Gi", 16, 64)
+		pool.Resources = genCapFooResources(0, 8, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-two-%02d", i%nets), "256Gi", "16", 64)
 
 		nrs = append(nrs, NodeResources{
 			Name: node,
@@ -213,8 +213,8 @@ func genCapShapeThree(num, nets int) []NodeResources {
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-three-%03d", i)
-		pool1.Resources = genCapFooResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-three-%03d", i), "64Gi", 8, 16)
-		pool2.Resources = genCapFooResources(4, 4, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-three-%02d", i%nets), "256Gi", 16, 64)
+		pool1.Resources = genCapFooResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-three-%03d", i), "64Gi", "8", 16)
+		pool2.Resources = genCapFooResources(4, 4, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-three-%02d", i%nets), "256Gi", "16", 64)
 
 		nrs = append(nrs, NodeResources{
 			Name: fmt.Sprintf("shape-three-%03d", i),

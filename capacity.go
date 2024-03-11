@@ -13,12 +13,12 @@ import (
 type NodeResources struct {
 	Name string `json:"name"`
 
-	Pools    []ResourcePool `json:"pools"`
+	Pools []ResourcePool `json:"pools"`
 }
 
 type ResourcePool struct {
 	Driver string `json:"driver"`
-	Name string `json:"name"`
+	Name   string `json:"name"`
 
 	// attributes for constraints at the pool level
 	Attributes []Attribute `json:"attributes,omitempty"`
@@ -38,6 +38,27 @@ type Resource struct {
 
 	// capacities that can be allocated
 	Capacities []Capacity `json:"capacities,omitempty"`
+}
+
+type Capacity struct {
+	Name string `json:"name"`
+
+	Topologies []Topology `json:"topologies,omitempty"`
+
+	// exactly one of the fields should be populated
+	// examples implemented:
+	//  - counter: integer capacity decremented by integers
+	//  - quantity: resource.Quantity capacity decremented by quantities
+	//  - block:  resource.Quantity capacity decremented in blocks
+
+	// +optional
+	Counter *ResourceCounter `json:"counter,omitempty"`
+
+	// +optional
+	Quantity *ResourceQuantity `json:"quantity,omitempty"`
+
+	// +optional
+	Block *ResourceBlock `json:"block,omitempty"`
 }
 
 type Attribute struct {
@@ -65,27 +86,12 @@ type Topology struct {
 	Aggregate bool   `json:"aggregate"` // if true, capacity can be aggregated across this topology
 }
 
-type Capacity struct {
-	Name string `json:"name"`
-
-	Topologies []Topology `json:"topologies,omitempty"`
-
-	// exactly one of the fields should be populated; that dictates which
-	// numerical model to use. Below, two different types of models are
-	// shown as examples:
-	// a counter model (capacity is decreased in integer increments), and
-	// a block counter (capacity is decreased in blocks). How each might
-	// be used will be shown below.
-
-	// +optional
-	Counter *ResourceCounter `json:"counter,omitempty"`
-
-	// +optional
-	Block *ResourceBlock `json:"block,omitempty"`
-}
-
 type ResourceCounter struct {
 	Capacity int64 `json:"capacity"`
+}
+
+type ResourceQuantity struct {
+	Capacity resource.Quantity `json:"capacity"`
 }
 
 type ResourceBlock struct {
@@ -99,6 +105,16 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityRequest, error) 
 			return &CapacityRequest{
 				Capacity: cr.Capacity,
 				Counter:  &ResourceCounterRequest{cr.Counter.Request},
+			}, nil
+		}
+		return nil, nil
+	}
+
+	if c.Quantity != nil && cr.Quantity != nil {
+		if cr.Quantity.Request.Cmp(c.Quantity.Capacity) <= 0 {
+			return &CapacityRequest{
+				Capacity: cr.Capacity,
+				Quantity: &ResourceQuantityRequest{cr.Quantity.Request},
 			}, nil
 		}
 		return nil, nil
