@@ -2,104 +2,48 @@ package main
 
 import (
 	"fmt"
+	"gopkg.in/inf.v0"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"math/big"
 	"strings"
 )
 
-// This prototype demonstrates allocating capacity from nodes,
-// adhering to the claim constraints and requests.
-// Currently, allocations are for a pod, and on a single node. However,
-// the general framework should be extensible across multi-pod workloads and
-// multi-node capacity.
+// This file contains all the functions for scheduling.
 
-type NodeCapacityAllocation struct {
-	NodeName       string                   `json:"nodeName"`
-	Allocations    []PoolCapacityAllocation `json:"allocations,omitempty"`
-	FailureSummary string                   `json:"failureSummary,omitempty"`
-	FailureDetails []string                 `json:"failureDetails,omitempty"`
-}
-
-func (nca *NodeCapacityAllocation) Success() bool {
-	return nca.FailureSummary == "" && len(nca.FailureDetails) == 0
-}
-
-func (nca *NodeCapacityAllocation) FailureReason() string {
-	if nca.Success() {
-		return ""
+// SchedulePod finds the best available node that can accomodate the pod claim
+func SchedulePod(available []NodeResources, cc *PodCapacityClaim) *NodeCapacityAllocation {
+	var results []*NodeCapacityAllocation
+	var best *NodeCapacityAllocation
+	for _, nr := range available {
+		nca := nr.AllocateForPod(cc)
+		results = append(results, &nca)
+		if !nca.Success() {
+			continue
+		}
+		if best == nil || best.Score() < nca.Score() {
+			best = &nca
+		}
 	}
 
-	if nca.FailureSummary != "" {
-		return nca.FailureSummary
+	if best != nil {
+		return best
 	}
 
-	return fmt.Sprintf("could not allocate capacity from any of %d pools", len(nca.FailureDetails))
-}
-
-func (nca *NodeCapacityAllocation) Score() int {
-	if !nca.Success() {
-		return 0
+	fmt.Printf("Could not schedule:\n")
+	for _, nca := range results {
+		fmt.Printf("%s: %s\n", nca.NodeName, nca.FailureReason())
+		if len(nca.FailureDetails) > 0 {
+			fmt.Printf(" - %s\n", strings.Join(nca.FailureDetails, "\n - "))
+		}
 	}
-
-	score := 0
-	for _, pca := range nca.Allocations {
-		score += pca.Score
-	}
-
-	return score
+	return nil
 }
 
-type PoolCapacityAllocation struct {
-	Driver         string               `json:"driver"`
-	PoolName       string               `json:"poolName"`
-	ResourceName   string               `json:"resourceName"`
-	Allocations    []CapacityAllocation `json:"allocations"`
-	Score          int                  `json:"score"`
-	FailureSummary string               `json:"failureSummary,omitempty"`
-	FailureDetails []string             `json:"failureDetails,omitempty"`
-}
-
-func (pca *PoolCapacityAllocation) Success() bool {
-	return pca.FailureSummary == "" && len(pca.FailureDetails) == 0 && len(pca.Allocations) > 0
-}
-
-func (pca *PoolCapacityAllocation) FailureReason() string {
-	if pca.Success() {
-		return ""
-	}
-
-	if pca.FailureSummary != "" {
-		return pca.FailureSummary
-	}
-
-	return fmt.Sprintf("could not allocate capacity from any of %d resources", len(pca.FailureDetails))
-
-}
-
-type CapacityAllocation struct {
-	CapacityRequest `json:",inline"`
-
-	// Topologies contains the topology assignments of the request allocation. Note
-	// that exactly one of each topology type from the original Capacity must be in
-	// this list. It is possible for the same requested capacity type, we split the
-	// request across multiple topologies. This is the case, for example, if a
-	// single memory request cannot be satisfied by a single NUMA node.
-	Topologies []TopologyAssignment `json:"topologies,omitempty"`
-}
-
-type TopologyAssignment struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
-}
-
-// Available calculates the available capacity after applying an allocation
-func Available(capacity []NodeResources, allocation *NodeCapacityAllocation) []NodeResources {
-	panic("not implemented")
-	return capacity
-}
+// NodeResources methods
 
 // AllocateForPod evaluates if a node can fit a pod claim, and if so, returns
 // the allocation (including topology assignments) and a score.
 // If not, returns the reason why the allocation is impossible.
-
 func (nr *NodeResources) AllocateForPod(cc *PodCapacityClaim) NodeCapacityAllocation {
 	result := NodeCapacityAllocation{NodeName: nr.Name}
 
@@ -142,6 +86,8 @@ func (nr *NodeResources) AllocateForPod(cc *PodCapacityClaim) NodeCapacityAlloca
 	}
 	return result
 }
+
+// ResourcePool methods
 
 // AllocateCapacity will evaluate a resource claim against the pool, and
 // return the options for making those allocations against the pools resources.
@@ -204,6 +150,8 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 	return result
 }
 
+// Resource methods
+
 func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityAllocation, string) {
 	/* Not ready to consider topology yet
 	*
@@ -254,31 +202,118 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityAllocation, str
 	return result, ""
 }
 
-// SchedulePod finds the best available node that can accomodate the pod claim
-func SchedulePod(available []NodeResources, cc *PodCapacityClaim) *NodeCapacityAllocation {
-	var results []*NodeCapacityAllocation
-	var best *NodeCapacityAllocation
-	for _, nr := range available {
-		nca := nr.AllocateForPod(cc)
-		results = append(results, &nca)
-		if !nca.Success() {
-			continue
+// Capacity methods
+
+func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityAllocation, error) {
+	if c.Counter != nil && cr.Counter != nil {
+		if cr.Counter.Request <= c.Counter.Capacity {
+			return &CapacityAllocation{
+				CapacityRequest: CapacityRequest{
+					Capacity: cr.Capacity,
+					Counter:  &ResourceCounterRequest{cr.Counter.Request},
+				},
+			}, nil
 		}
-		if best == nil || best.Score() < nca.Score() {
-			best = &nca
-		}
+		return nil, nil
 	}
 
-	if best != nil {
-		return best
+	if c.Quantity != nil && cr.Quantity != nil {
+		if cr.Quantity.Request.Cmp(c.Quantity.Capacity) <= 0 {
+			return &CapacityAllocation{
+				CapacityRequest: CapacityRequest{
+					Capacity: cr.Capacity,
+					Quantity: &ResourceQuantityRequest{cr.Quantity.Request},
+				},
+			}, nil
+		}
+		return nil, nil
 	}
 
-	fmt.Printf("Could not schedule:\n")
-	for _, nca := range results {
-		fmt.Printf("%s: %s\n", nca.NodeName, nca.FailureReason())
-		if len(nca.FailureDetails) > 0 {
-			fmt.Printf(" - %s\n", strings.Join(nca.FailureDetails, "\n - "))
+	if c.Block != nil && cr.Quantity != nil {
+		realRequest := roundToBlock(cr.Quantity.Request, c.Block.Size)
+		if realRequest.Cmp(c.Block.Capacity) <= 0 {
+			return &CapacityAllocation{
+				CapacityRequest: CapacityRequest{
+					Capacity: cr.Capacity,
+					Quantity: &ResourceQuantityRequest{realRequest},
+				},
+			}, nil
 		}
+		return nil, nil
 	}
-	return nil
+
+	return nil, fmt.Errorf("invalid allocation request of %v from %v", cr, c)
+}
+
+func roundToBlock(q, size resource.Quantity) resource.Quantity {
+	qi := qtoi(q)
+	si := qtoi(size)
+	zero := big.NewInt(0)
+	remainder := big.NewInt(0)
+	remainder.Rem(qi, si)
+	if remainder.Cmp(zero) > 0 {
+		qi.Add(qi, si).Sub(qi, remainder)
+	}
+	// canonicalize and return
+	return resource.MustParse(resource.NewDecimalQuantity(*inf.NewDecBig(qi, inf.Scale(-1*resource.Nano)), q.Format).String())
+}
+
+// force to nano scale and return as int
+func qtoi(q resource.Quantity) *big.Int {
+	_, scale := q.AsCanonicalBytes(nil)
+	d := q.AsDec()
+	d.SetScale(inf.Scale(int32(resource.Nano) - scale))
+	i := big.NewInt(0)
+	i.SetString(d.String(), 10)
+	return i
+}
+
+// NodeCapacityAllocation methods
+
+func (nca *NodeCapacityAllocation) Success() bool {
+	return nca.FailureSummary == "" && len(nca.FailureDetails) == 0
+}
+
+func (nca *NodeCapacityAllocation) FailureReason() string {
+	if nca.Success() {
+		return ""
+	}
+
+	if nca.FailureSummary != "" {
+		return nca.FailureSummary
+	}
+
+	return fmt.Sprintf("could not allocate capacity from any of %d pools", len(nca.FailureDetails))
+}
+
+func (nca *NodeCapacityAllocation) Score() int {
+	if !nca.Success() {
+		return 0
+	}
+
+	score := 0
+	for _, pca := range nca.Allocations {
+		score += pca.Score
+	}
+
+	return score
+}
+
+// PoolCapacityAlloction methods
+
+func (pca *PoolCapacityAllocation) Success() bool {
+	return pca.FailureSummary == "" && len(pca.FailureDetails) == 0 && len(pca.Allocations) > 0
+}
+
+func (pca *PoolCapacityAllocation) FailureReason() string {
+	if pca.Success() {
+		return ""
+	}
+
+	if pca.FailureSummary != "" {
+		return pca.FailureSummary
+	}
+
+	return fmt.Sprintf("could not allocate capacity from any of %d resources", len(pca.FailureDetails))
+
 }
