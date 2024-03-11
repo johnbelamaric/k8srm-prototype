@@ -13,7 +13,14 @@ func TestSchedulePodForCore(t *testing.T) {
 		"single pod, single container": {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
-					Claims: []ResourceClaim{genClaimPodContainer(1, 1)},
+					Name:   "my-pod",
+					Claims: []ResourceClaim{genClaimPod()},
+				},
+				ContainerClaims: []CapacityClaim{
+					{
+						Name:   "my-container",
+						Claims: []ResourceClaim{genClaimContainer("", "")},
+					},
 				},
 			},
 			expectSuccess: true,
@@ -21,11 +28,13 @@ func TestSchedulePodForCore(t *testing.T) {
 		"single pod, single container, with CPU and memory": {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
-					Claims: []ResourceClaim{genClaimPodContainer(1, 1)},
+					Name:   "my-pod",
+					Claims: []ResourceClaim{genClaimPod()},
 				},
 				ContainerClaims: []CapacityClaim{
 					{
-						Claims: []ResourceClaim{genClaimCPUMem("7127m", "8Gi")},
+						Name:   "my-container",
+						Claims: []ResourceClaim{genClaimContainer("7127m", "8Gi")},
 					},
 				},
 			},
@@ -34,9 +43,16 @@ func TestSchedulePodForCore(t *testing.T) {
 		"no resources for driver": {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
+					Name: "my-foozer-pod",
 					Claims: []ResourceClaim{
-						genClaimPodContainer(1, 1),
-						genClaimFoozer(1, "2Gi"),
+						genClaimPod(),
+						genClaimFoozer("foozer", 1, "2Gi"),
+					},
+				},
+				ContainerClaims: []CapacityClaim{
+					{
+						Name:   "my-container",
+						Claims: []ResourceClaim{genClaimContainer("7127m", "8Gi")},
 					},
 				},
 			},

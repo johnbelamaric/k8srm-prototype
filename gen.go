@@ -231,38 +231,48 @@ func genCapShapeThree(num, nets int) []NodeResources {
 
 // claim generators
 
-func genClaimPodContainer(pods, containers int64) ResourceClaim {
+func genClaimPod() ResourceClaim {
 	return ResourceClaim{
+		Name: "pod",
 		Capacities: []CapacityRequest{
 			{
 				Capacity: "pods",
-				Counter:  &ResourceCounterRequest{Request: pods},
-			},
-			{
-				Capacity: "containers",
-				Counter:  &ResourceCounterRequest{Request: containers},
+				Counter:  &ResourceCounterRequest{Request: 1},
 			},
 		},
 	}
 }
 
-func genClaimCPUMem(cpu, mem string) ResourceClaim {
-	return ResourceClaim{
+func genClaimContainer(cpu, mem string) ResourceClaim {
+	rc := ResourceClaim{
+		Name: "container",
 		Capacities: []CapacityRequest{
 			{
-				Capacity: "cpu",
-				Quantity: &ResourceQuantityRequest{Request: resource.MustParse(cpu)},
-			},
-			{
-				Capacity: "memory",
-				Quantity: &ResourceQuantityRequest{Request: resource.MustParse(mem)},
+				Capacity: "containers",
+				Counter:  &ResourceCounterRequest{Request: 1},
 			},
 		},
 	}
+
+	if cpu != "" {
+		rc.Capacities = append(rc.Capacities, CapacityRequest{
+			Capacity: "cpu",
+			Quantity: &ResourceQuantityRequest{Request: resource.MustParse(cpu)},
+		})
+	}
+	if mem != "" {
+		rc.Capacities = append(rc.Capacities, CapacityRequest{
+			Capacity: "memory",
+			Quantity: &ResourceQuantityRequest{Request: resource.MustParse(mem)},
+		})
+	}
+
+	return rc
 }
 
-func genClaimFoozer(cores int64, mem string) ResourceClaim {
+func genClaimFoozer(name string, cores int64, mem string) ResourceClaim {
 	return ResourceClaim{
+		Name:   name,
 		Driver: "example.com/foozer",
 		Capacities: []CapacityRequest{
 			{

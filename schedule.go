@@ -49,16 +49,16 @@ func (nca *NodeCapacityAllocation) Score() int {
 
 type PoolCapacityAllocation struct {
 	Driver         string               `json:"driver"`
+	PoolName       string               `json:"poolName"`
 	ResourceName   string               `json:"resourceName"`
-	Capacities     []CapacityRequest    `json:"capacities"`
-	Topologies     []TopologyAssignment `json:"topologies,omitempty"`
+	Allocations    []CapacityAllocation `json:"allocations"`
 	Score          int                  `json:"score"`
 	FailureSummary string               `json:"failureSummary,omitempty"`
 	FailureDetails []string             `json:"failureDetails,omitempty"`
 }
 
 func (pca *PoolCapacityAllocation) Success() bool {
-	return pca.FailureSummary == "" && len(pca.FailureDetails) == 0 && len(pca.Capacities) > 0
+	return pca.FailureSummary == "" && len(pca.FailureDetails) == 0 && len(pca.Allocations) > 0
 }
 
 func (pca *PoolCapacityAllocation) FailureReason() string {
@@ -74,13 +74,17 @@ func (pca *PoolCapacityAllocation) FailureReason() string {
 
 }
 
-// TODO:(johnbelamaric) open question
-// if there is no topology constraint in the request, and
-// the topology is aggregatable, we do not need to assign
-// a specific topology
-// But if we don't, then we can't fulfill other requests with topology constraints
-// at least until the actuation engine that *does* do topology assignments
-// kicks in.
+type CapacityAllocation struct {
+	CapacityRequest `json:",inline"`
+
+	// Topologies contains the topology assignments of the request allocation. Note
+	// that exactly one of each topology type from the original Capacity must be in
+	// this list. It is possible for the same requested capacity type, we split the
+	// request across multiple topologies. This is the case, for example, if a
+	// single memory request cannot be satisfied by a single NUMA node.
+	Topologies []TopologyAssignment `json:"topologies,omitempty"`
+}
+
 type TopologyAssignment struct {
 	Type string `json:"type"`
 	Name string `json:"name"`
@@ -187,11 +191,11 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 
 		//TODO(johnbelamaric): loop through all instead of using first, add scoring
 		result.Score = 1
-		result.Capacities = capacities
+		result.Allocations = capacities
 		break
 	}
 
-	if len(result.Capacities) == 0 {
+	if len(result.Allocations) == 0 {
 		result.FailureSummary = fmt.Sprintf("pool %q: no resources with sufficient capacity", pool.Name)
 		result.FailureDetails = failures
 		return result
@@ -200,7 +204,7 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 	return result
 }
 
-func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityRequest, string) {
+func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityAllocation, string) {
 	/* Not ready to consider topology yet
 	*
 	// see what topology constraints we need to consider
@@ -218,13 +222,13 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityRequest, string
 	// topologies
 	var flat []Capacity
 	for _, r := range pool.Resources {
-		for _, capacity := range r.Capacities {
+		for _, capacity := range r.Allocations {
 			flat = append(flat, capacity)
 		}
 	}
 	*/
 
-	var result []CapacityRequest
+	var result []CapacityAllocation
 	// index the capacities in the resource
 	capacityMap := make(map[string]Capacity)
 	for _, c := range r.Capacities {

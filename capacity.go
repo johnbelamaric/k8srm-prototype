@@ -99,12 +99,14 @@ type ResourceBlock struct {
 	Capacity resource.Quantity `json:"capacity"`
 }
 
-func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityRequest, error) {
+func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityAllocation, error) {
 	if c.Counter != nil && cr.Counter != nil {
 		if cr.Counter.Request <= c.Counter.Capacity {
-			return &CapacityRequest{
-				Capacity: cr.Capacity,
-				Counter:  &ResourceCounterRequest{cr.Counter.Request},
+			return &CapacityAllocation{
+				CapacityRequest: CapacityRequest{
+					Capacity: cr.Capacity,
+					Counter:  &ResourceCounterRequest{cr.Counter.Request},
+				},
 			}, nil
 		}
 		return nil, nil
@@ -112,9 +114,11 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityRequest, error) 
 
 	if c.Quantity != nil && cr.Quantity != nil {
 		if cr.Quantity.Request.Cmp(c.Quantity.Capacity) <= 0 {
-			return &CapacityRequest{
-				Capacity: cr.Capacity,
-				Quantity: &ResourceQuantityRequest{cr.Quantity.Request},
+			return &CapacityAllocation{
+				CapacityRequest: CapacityRequest{
+					Capacity: cr.Capacity,
+					Quantity: &ResourceQuantityRequest{cr.Quantity.Request},
+				},
 			}, nil
 		}
 		return nil, nil
@@ -123,9 +127,11 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityRequest, error) 
 	if c.Block != nil && cr.Quantity != nil {
 		realRequest := roundToBlock(cr.Quantity.Request, c.Block.Size)
 		if realRequest.Cmp(c.Block.Capacity) <= 0 {
-			return &CapacityRequest{
-				Capacity: cr.Capacity,
-				Quantity: &ResourceQuantityRequest{realRequest},
+			return &CapacityAllocation{
+				CapacityRequest: CapacityRequest{
+					Capacity: cr.Capacity,
+					Quantity: &ResourceQuantityRequest{realRequest},
+				},
 			}, nil
 		}
 		return nil, nil

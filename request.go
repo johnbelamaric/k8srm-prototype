@@ -33,6 +33,11 @@ type PodCapacityClaim struct {
 }
 
 type CapacityClaim struct {
+	// Name is used to identify the capacity claim to help in troubleshooting
+	// unschedulable claims.
+	// +required
+	Name string `json:"name"`
+
 	// Claims contains the set of resource claims that are part of
 	// this capacity claim
 	// +required
@@ -45,6 +50,11 @@ type CapacityClaim struct {
 }
 
 type ResourceClaim struct {
+	// Name is used to identify the resource claim to help in troubleshooting
+	// unschedulable claims.
+	// +required
+	Name string `json:"name"`
+
 	// Driver will limit the scope of resources considered
 	// to only those published by the specified driver
 	// +optional
