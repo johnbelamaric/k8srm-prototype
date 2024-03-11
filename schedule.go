@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"math/big"
 	"sigs.k8s.io/yaml"
+	"strings"
 )
 
 // This file contains all the functions for scheduling.
@@ -93,7 +94,8 @@ func (nr *NodeResources) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimA
 		} else {
 			rca.FailureSummary = "no resource with sufficient capacity in any pool"
 			for _, pca := range poolResults {
-				rca.FailureDetails = append(rca.FailureDetails, pca.FailureReason())
+				rca.FailureDetails = append(rca.FailureDetails,
+					fmt.Sprintf("%s: %s", pca.PoolName, pca.FailureReason()))
 			}
 		}
 		result.ResourceClaimAllocations = append(result.ResourceClaimAllocations, rca)
@@ -257,7 +259,7 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityAllocation, erro
 		return nil, nil
 	}
 
-	return nil, fmt.Errorf("invalid allocation request of %v from %v", cr, c)
+	return nil, fmt.Errorf("request/capacity type mismatch")
 }
 
 func roundToBlock(q, size resource.Quantity) resource.Quantity {
@@ -377,10 +379,5 @@ func (pca *PoolCapacityAllocation) FailureReason() string {
 		return ""
 	}
 
-	if pca.FailureSummary != "" {
-		return pca.FailureSummary
-	}
-
-	return fmt.Sprintf("could not allocate capacity from any of %d resources", len(pca.FailureDetails))
-
+	return fmt.Sprintf("%s; %s", pca.FailureSummary, strings.Join(pca.FailureDetails, ", "))
 }

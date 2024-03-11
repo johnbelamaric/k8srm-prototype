@@ -79,7 +79,7 @@ func genCapPrimaryPool(node, os, kernel, hw string, numa ...numaGen) ResourcePoo
 	}
 }
 
-func genCapFooResources(start, num int, model, version, conn, net, mem, foos string, vfs int64) []Resource {
+func genCapFoozerResources(start, num int, model, version, conn, net, mem, foos string, vfs int64) []Resource {
 	var resources []Resource
 	for i := start; i < (start + num); i++ {
 		resources = append(resources, Resource{
@@ -111,15 +111,15 @@ func genCapFooResources(start, num int, model, version, conn, net, mem, foos str
 			},
 			Capacities: []Capacity{
 				{
-					Name:     "foo-cores",
+					Name:     "example.com/foozer/cores",
 					Quantity: &ResourceQuantity{resource.MustParse(foos)},
 				},
 				{
-					Name:  "foo-memory",
+					Name:  "example.com/foozer/memory",
 					Block: &ResourceBlock{resource.MustParse("256Mi"), resource.MustParse(mem)},
 				},
 				{
-					Name:    "vfs",
+					Name:    "sriov-vfs",
 					Counter: &ResourceCounter{vfs},
 				},
 			},
@@ -161,7 +161,7 @@ func genCapShapeOne(num int) []NodeResources {
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-one-%03d", i)
-		pool.Resources = genCapFooResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-one-%03d", i), "64Gi", "8", 16)
+		pool.Resources = genCapFoozerResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-one-%03d", i), "64Gi", "8", 16)
 
 		nrs = append(nrs, NodeResources{
 			Name: node,
@@ -190,7 +190,7 @@ func genCapShapeTwo(num, nets int) []NodeResources {
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-two-%03d", i)
-		pool.Resources = genCapFooResources(0, 8, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-two-%02d", i%nets), "256Gi", "16", 64)
+		pool.Resources = genCapFoozerResources(0, 8, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-two-%02d", i%nets), "256Gi", "16", 64)
 
 		nrs = append(nrs, NodeResources{
 			Name: node,
@@ -219,8 +219,8 @@ func genCapShapeThree(num, nets int) []NodeResources {
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-three-%03d", i)
-		pool1.Resources = genCapFooResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-three-%03d", i), "64Gi", "8", 16)
-		pool2.Resources = genCapFooResources(4, 4, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-three-%02d", i%nets), "256Gi", "16", 64)
+		pool1.Resources = genCapFoozerResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-three-%03d", i), "64Gi", "8", 16)
+		pool2.Resources = genCapFoozerResources(4, 4, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-three-%02d", i%nets), "256Gi", "16", 64)
 
 		nrs = append(nrs, NodeResources{
 			Name: fmt.Sprintf("shape-three-%03d", i),
@@ -276,18 +276,22 @@ func genClaimContainer(cpu, mem string) ResourceClaim {
 	return rc
 }
 
-func genClaimFoozer(name string, cores int64, mem string) ResourceClaim {
+func genClaimFoozer(name, cores, mem string, vfs int64) ResourceClaim {
 	return ResourceClaim{
 		Name:   name,
 		Driver: "example.com/foozer",
 		Capacities: []CapacityRequest{
 			{
 				Capacity: "example.com/foozer/cores",
-				Counter:  &ResourceCounterRequest{Request: cores},
+				Quantity: &ResourceQuantityRequest{Request: resource.MustParse(cores)},
 			},
 			{
 				Capacity: "example.com/foozer/memory",
 				Quantity: &ResourceQuantityRequest{Request: resource.MustParse(mem)},
+			},
+			{
+				Capacity: "sriov-vfs",
+				Counter:  &ResourceCounterRequest{Request: vfs},
 			},
 		},
 	}
