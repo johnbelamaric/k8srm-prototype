@@ -113,15 +113,11 @@ func (nr *NodeResources) AllocateForPod(cc *PodCapacityClaim) NodeCapacityAlloca
 	// we reduce the pool capacity. Right now if there are multiple claims
 	// for the same pool, we could double-allocate
 	for _, c := range claims {
-		var pools []ResourcePool
-		pools = append(pools, nr.Core)
-		pools = append(pools, nr.Extended...)
-
 		var poolResults []*PoolCapacityAllocation
 		var best *PoolCapacityAllocation
 
 		// find the best pool that can satisfy the claim
-		for _, pool := range pools {
+		for _, pool := range nr.Pools {
 			poolResult := pool.AllocateCapacity(c)
 			poolResults = append(poolResults, &poolResult)
 			if !poolResult.Success() {
@@ -133,13 +129,8 @@ func (nr *NodeResources) AllocateForPod(cc *PodCapacityClaim) NodeCapacityAlloca
 		}
 		if best == nil {
 			result.FailureSummary = fmt.Sprintf("claim driver %q: no resource with sufficient capacity in any pool", c.Driver)
-			for poolIdx, pca := range poolResults {
-				poolName := "core pool"
-				if poolIdx > 0 {
-					poolName = fmt.Sprintf("extended pool %d", poolIdx-1)
-				}
-				result.FailureDetails = append(result.FailureDetails,
-					fmt.Sprintf("%s: %s", poolName, pca.FailureReason()))
+			for _, pca := range poolResults {
+				result.FailureDetails = append(result.FailureDetails, pca.FailureReason())
 			}
 			// TODO(johnbelamaric): restructure to try every claim even if one fails
 			return result
@@ -155,7 +146,7 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 	result := PoolCapacityAllocation{Driver: pool.Driver}
 
 	if rc.Driver != "" && rc.Driver != pool.Driver {
-		result.FailureSummary = "driver mismatch"
+		result.FailureSummary = fmt.Sprintf("pool %q: driver mismatch", pool.Name)
 		return result
 	}
 
@@ -166,8 +157,8 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 	for _, r := range pool.Resources {
 		pass, err := r.MeetsConstraints(rc.Constraints, pool.Attributes)
 		if err != nil {
-			result.FailureSummary = fmt.Sprintf("error evaluating driver %q resource %q against constraints %v: %s",
-				pool.Driver, r.Name, rc.Constraints, err)
+			result.FailureSummary = fmt.Sprintf("pool %q: error evaluating resource %q against constraints: %s",
+				pool.Name, r.Name, err)
 			return result
 		}
 		if !pass {
@@ -179,7 +170,7 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 	}
 
 	if len(resources) == 0 {
-		result.FailureSummary = fmt.Sprintf("no driver %q resources meet the constraints %v", pool.Driver, rc.Constraints)
+		result.FailureSummary = fmt.Sprintf("pool %q: no resources meet the constraints %v", pool.Name, rc.Constraints)
 		return result
 	}
 
@@ -202,7 +193,7 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 	}
 
 	if len(result.Capacities) == 0 {
-		result.FailureSummary = fmt.Sprintf("no resource with sufficient capacity for driver %q", pool.Driver)
+		result.FailureSummary = fmt.Sprintf("pool %q: no resources with sufficient capacity", pool.Name)
 		result.FailureDetails = failures
 		return result
 	}
@@ -260,7 +251,7 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityRequest, string
 	return result, ""
 }
 
-// SchedulePod finds the first available node that can accomodate the pod claim
+// SchedulePod finds the best available node that can accomodate the pod claim
 func SchedulePod(available []NodeResources, cc *PodCapacityClaim) *NodeCapacityAllocation {
 	var results []*NodeCapacityAllocation
 	var best *NodeCapacityAllocation

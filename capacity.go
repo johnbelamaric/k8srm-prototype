@@ -13,12 +13,12 @@ import (
 type NodeResources struct {
 	Name string `json:"name"`
 
-	Core     ResourcePool   `json:"core"`
-	Extended []ResourcePool `json:"extended,omitempty"`
+	Pools    []ResourcePool `json:"pools"`
 }
 
 type ResourcePool struct {
 	Driver string `json:"driver"`
+	Name string `json:"name"`
 
 	// attributes for constraints at the pool level
 	Attributes []Attribute `json:"attributes,omitempty"`
