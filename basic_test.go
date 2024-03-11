@@ -112,21 +112,6 @@ func TestSchedulePodForFoozer(t *testing.T) {
 		claim         PodCapacityClaim
 		expectSuccess bool
 	}{
-		"single pod, single container, with CPU and memory": {
-			claim: PodCapacityClaim{
-				PodClaim: CapacityClaim{
-					Name:   "my-pod",
-					Claims: []ResourceClaim{genClaimPod()},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("1", "4Gi")},
-					},
-				},
-			},
-			expectSuccess: true,
-		},
 		"single pod, container, cpu/mem, and foozer": {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
@@ -145,6 +130,24 @@ func TestSchedulePodForFoozer(t *testing.T) {
 			},
 			expectSuccess: true,
 		},
+		"no foozer big enough": {
+			claim: PodCapacityClaim{
+				PodClaim: CapacityClaim{
+					Name: "my-foozer-pod",
+					Claims: []ResourceClaim{
+						genClaimPod(),
+						genClaimFoozer("foozer", "16", "32Gi", 0),
+					},
+				},
+				ContainerClaims: []CapacityClaim{
+					{
+						Name:   "my-container",
+						Claims: []ResourceClaim{genClaimContainer("1", "4Gi")},
+					},
+				},
+			},
+			expectSuccess: false,
+		},
 	}
 
 	capacity := genCapShapeOne(2)
@@ -161,3 +164,62 @@ func TestSchedulePodForFoozer(t *testing.T) {
 		})
 	}
 }
+
+func TestSchedulePodForBigFoozer(t *testing.T) {
+	testCases := map[string]struct {
+		claim         PodCapacityClaim
+		expectSuccess bool
+	}{
+		"single pod, container, cpu/mem, and foozer": {
+			claim: PodCapacityClaim{
+				PodClaim: CapacityClaim{
+					Name: "my-foozer-pod",
+					Claims: []ResourceClaim{
+						genClaimPod(),
+						genClaimFoozer("foozer", "1", "2Gi", 0),
+					},
+				},
+				ContainerClaims: []CapacityClaim{
+					{
+						Name:   "my-container",
+						Claims: []ResourceClaim{genClaimContainer("1", "4Gi")},
+					},
+				},
+			},
+			expectSuccess: true,
+		},
+		"no foozer big enough": {
+			claim: PodCapacityClaim{
+				PodClaim: CapacityClaim{
+					Name: "my-foozer-pod",
+					Claims: []ResourceClaim{
+						genClaimPod(),
+						genClaimFoozer("foozer", "16", "32Gi", 0),
+					},
+				},
+				ContainerClaims: []CapacityClaim{
+					{
+						Name:   "my-container",
+						Claims: []ResourceClaim{genClaimContainer("1", "4Gi")},
+					},
+				},
+			},
+			expectSuccess: true,
+		},
+	}
+
+	capacity := genCapShapeTwo(2,4)
+	for tn, tc := range testCases {
+		t.Run(tn, func(t *testing.T) {
+			fmt.Println("-------------------------------")
+			fmt.Println(tn)
+			fmt.Println("----")
+			allocation := SchedulePod(capacity, &tc.claim)
+			require.Equal(t, tc.expectSuccess, allocation != nil)
+			fmt.Println("----")
+			b, _ := yaml.Marshal(allocation)
+			fmt.Println(string(b))
+		})
+	}
+}
+
