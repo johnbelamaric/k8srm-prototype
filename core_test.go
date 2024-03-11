@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/yaml"
 	"testing"
 )
 
@@ -64,6 +66,11 @@ func TestSchedulePodForCore(t *testing.T) {
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
 			allocation := SchedulePod(capacity, &tc.claim)
+			b, _ := yaml.Marshal(allocation)
+			fmt.Println(tn)
+			fmt.Println("-------------------------------")
+			fmt.Println(string(b))
+			fmt.Println("-------------------------------")
 			require.Equal(t, tc.expectSuccess, allocation != nil)
 		})
 	}

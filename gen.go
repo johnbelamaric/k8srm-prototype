@@ -17,19 +17,23 @@ func genCapNumaNode(num int, cpu, mem resource.Quantity) []Capacity {
 			Block: &ResourceBlock{resource.MustParse("10m"), cpu},
 			Topologies: []Topology{
 				{
-					Name:      fmt.Sprintf("numa-%d", num),
-					Type:      "numa",
-					Aggregate: true,
+					Name:                fmt.Sprintf("numa-%d", num),
+					Type:                "numa",
+					AggregateInResource: true,
+					AggregateInPool:     false,
 				},
 			},
 		},
 		{
 			Name:  "memory",
 			Block: &ResourceBlock{resource.MustParse("1Mi"), mem},
-			Topologies: []Topology{{
-				Name:      fmt.Sprintf("numa-%d", num),
-				Type:      "numa",
-				Aggregate: true},
+			Topologies: []Topology{
+				{
+					Name:                fmt.Sprintf("numa-%d", num),
+					Type:                "numa",
+					AggregateInResource: true,
+					AggregateInPool:     false,
+				},
 			},
 		},
 	}
@@ -66,9 +70,8 @@ func genCapPrimaryPool(node, os, kernel, hw string, numa ...numaGen) ResourcePoo
 			Name: "primary",
 			Topologies: []Topology{
 				{
-					Name:      node,
-					Type:      "node",
-					Aggregate: false,
+					Name: node,
+					Type: "node",
 				},
 			},
 			Capacities: capacities,
@@ -88,19 +91,22 @@ func genCapFooResources(start, num int, model, version, conn, net, mem, foos str
 			},
 			Topologies: []Topology{
 				{
-					Name:      net,
-					Type:      "foo-net",
-					Aggregate: true,
+					Name:                net,
+					Type:                "foo-net",
+					AggregateInResource: true,
+					AggregateInPool:     false,
 				},
 				{
-					Name:      fmt.Sprintf("numa-%d", i/2),
-					Type:      "numa",
-					Aggregate: true,
+					Name:                fmt.Sprintf("numa-%d", i/2),
+					Type:                "numa",
+					AggregateInResource: true,
+					AggregateInPool:     false,
 				},
 				{
-					Name:      fmt.Sprintf("pci-%d", i%2),
-					Type:      "pci",
-					Aggregate: true,
+					Name:                fmt.Sprintf("pci-%d", i%2),
+					Type:                "pci",
+					AggregateInResource: true,
+					AggregateInPool:     false,
 				},
 			},
 			Capacities: []Capacity{

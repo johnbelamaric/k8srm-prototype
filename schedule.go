@@ -5,17 +5,16 @@ import (
 	"gopkg.in/inf.v0"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"math/big"
-	"strings"
 )
 
 // This file contains all the functions for scheduling.
 
 // SchedulePod finds the best available node that can accomodate the pod claim
-func SchedulePod(available []NodeResources, cc *PodCapacityClaim) *NodeCapacityAllocation {
+func SchedulePod(available []NodeResources, pcc *PodCapacityClaim) *NodeCapacityAllocation {
 	var results []*NodeCapacityAllocation
 	var best *NodeCapacityAllocation
 	for _, nr := range available {
-		nca := nr.AllocateForPod(cc)
+		nca := nr.AllocatePodCapacityClaim(pcc)
 		results = append(results, &nca)
 		if !nca.Success() {
 			continue
@@ -31,10 +30,7 @@ func SchedulePod(available []NodeResources, cc *PodCapacityClaim) *NodeCapacityA
 
 	fmt.Printf("Could not schedule:\n")
 	for _, nca := range results {
-		fmt.Printf("%s: %s\n", nca.NodeName, nca.FailureReason())
-		if len(nca.FailureDetails) > 0 {
-			fmt.Printf(" - %s\n", strings.Join(nca.FailureDetails, "\n - "))
-		}
+		fmt.Printf("%s: %v", nca.NodeName, nca)
 	}
 	return nil
 }
@@ -44,28 +40,36 @@ func SchedulePod(available []NodeResources, cc *PodCapacityClaim) *NodeCapacityA
 // AllocateForPod evaluates if a node can fit a pod claim, and if so, returns
 // the allocation (including topology assignments) and a score.
 // If not, returns the reason why the allocation is impossible.
-func (nr *NodeResources) AllocateForPod(cc *PodCapacityClaim) NodeCapacityAllocation {
+func (nr *NodeResources) AllocatePodCapacityClaim(pcc *PodCapacityClaim) NodeCapacityAllocation {
 	result := NodeCapacityAllocation{NodeName: nr.Name}
 
-	// for now, don't really treat core differently
-	// but we will have to when we incorporate topology
-	var claims []ResourceClaim
-	claims = append(claims, cc.PodClaim.Claims...)
-	for _, contClaim := range cc.ContainerClaims {
-		claims = append(claims, contClaim.Claims...)
+	result.CapacityClaimAllocations = append(result.CapacityClaimAllocations, nr.AllocateCapacityClaim(&pcc.PodClaim))
+
+	for _, cc := range pcc.ContainerClaims {
+		result.CapacityClaimAllocations = append(result.CapacityClaimAllocations, nr.AllocateCapacityClaim(&cc))
 	}
 
-	// find the best pool to satisfy each claim
-	// TODO(johnbelamaric): fix this so the as each claim is sastisfied,
-	// we reduce the pool capacity. Right now if there are multiple claims
-	// for the same pool, we could double-allocate
-	for _, c := range claims {
+	return result
+}
+
+func (nr *NodeResources) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimAllocation {
+	result := CapacityClaimAllocation{ClaimName: cc.Name}
+
+	for _, rc := range cc.Claims {
+		rca := ResourceClaimAllocation{ClaimName: cc.Name}
+
+		// find the best pool to satisfy each resource claim
+		// TODO(johnbelamaric): allows splitting a single resource claim across multiple
+		// pools
+		// TODO(johnbelamaric): fix this so the as each claim is sastisfied,
+		// we reduce the pool capacity. Right now if there are multiple claims
+		// for the same pool, we could double-allocate
 		var poolResults []*PoolCapacityAllocation
 		var best *PoolCapacityAllocation
 
 		// find the best pool that can satisfy the claim
 		for _, pool := range nr.Pools {
-			poolResult := pool.AllocateCapacity(c)
+			poolResult := pool.AllocateCapacity(rc)
 			poolResults = append(poolResults, &poolResult)
 			if !poolResult.Success() {
 				continue
@@ -74,15 +78,15 @@ func (nr *NodeResources) AllocateForPod(cc *PodCapacityClaim) NodeCapacityAlloca
 				best = &poolResult
 			}
 		}
-		if best == nil {
-			result.FailureSummary = fmt.Sprintf("claim driver %q: no resource with sufficient capacity in any pool", c.Driver)
+		if best != nil {
+			rca.PoolAllocations = append(rca.PoolAllocations, *best)
+		} else {
+			rca.FailureSummary = "no resource with sufficient capacity in any pool"
 			for _, pca := range poolResults {
-				result.FailureDetails = append(result.FailureDetails, pca.FailureReason())
+				rca.FailureDetails = append(rca.FailureDetails, pca.FailureReason())
 			}
-			// TODO(johnbelamaric): restructure to try every claim even if one fails
-			return result
 		}
-		result.Allocations = append(result.Allocations, *best)
+		result.ResourceClaimAllocations = append(result.ResourceClaimAllocations, rca)
 	}
 	return result
 }
@@ -92,10 +96,10 @@ func (nr *NodeResources) AllocateForPod(cc *PodCapacityClaim) NodeCapacityAlloca
 // AllocateCapacity will evaluate a resource claim against the pool, and
 // return the options for making those allocations against the pools resources.
 func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocation {
-	result := PoolCapacityAllocation{Driver: pool.Driver}
+	result := PoolCapacityAllocation{PoolName: pool.Name}
 
 	if rc.Driver != "" && rc.Driver != pool.Driver {
-		result.FailureSummary = fmt.Sprintf("pool %q: driver mismatch", pool.Name)
+		result.FailureSummary = "driver mismatch"
 		return result
 	}
 
@@ -106,8 +110,7 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 	for _, r := range pool.Resources {
 		pass, err := r.MeetsConstraints(rc.Constraints, pool.Attributes)
 		if err != nil {
-			result.FailureSummary = fmt.Sprintf("pool %q: error evaluating resource %q against constraints: %s",
-				pool.Name, r.Name, err)
+			result.FailureSummary = fmt.Sprintf("error evaluating resource %q against constraints: %s", r.Name, err)
 			return result
 		}
 		if !pass {
@@ -119,7 +122,7 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 	}
 
 	if len(resources) == 0 {
-		result.FailureSummary = fmt.Sprintf("pool %q: no resources meet the constraints %v", pool.Name, rc.Constraints)
+		result.FailureSummary = fmt.Sprintf("no resources meet the constraints %v", rc.Constraints)
 		return result
 	}
 
@@ -135,14 +138,16 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 			continue
 		}
 
-		//TODO(johnbelamaric): loop through all instead of using first, add scoring
+		//TODO(johnbelamaric): loop through all instead of using first, add scoring and splitting
+		// across resources if possible
 		result.Score = 1
-		result.Allocations = capacities
+		result.CapacityAllocations = capacities
+		result.ResourceName = r.Name
 		break
 	}
 
-	if len(result.Allocations) == 0 {
-		result.FailureSummary = fmt.Sprintf("pool %q: no resources with sufficient capacity", pool.Name)
+	if len(result.CapacityAllocations) == 0 {
+		result.FailureSummary = "no resources with sufficient capacity"
 		result.FailureDetails = failures
 		return result
 	}
@@ -271,19 +276,13 @@ func qtoi(q resource.Quantity) *big.Int {
 // NodeCapacityAllocation methods
 
 func (nca *NodeCapacityAllocation) Success() bool {
-	return nca.FailureSummary == "" && len(nca.FailureDetails) == 0
-}
-
-func (nca *NodeCapacityAllocation) FailureReason() string {
-	if nca.Success() {
-		return ""
+	for _, a := range nca.CapacityClaimAllocations {
+		if !a.Success() {
+			return false
+		}
 	}
 
-	if nca.FailureSummary != "" {
-		return nca.FailureSummary
-	}
-
-	return fmt.Sprintf("could not allocate capacity from any of %d pools", len(nca.FailureDetails))
+	return true
 }
 
 func (nca *NodeCapacityAllocation) Score() int {
@@ -292,8 +291,66 @@ func (nca *NodeCapacityAllocation) Score() int {
 	}
 
 	score := 0
-	for _, pca := range nca.Allocations {
-		score += pca.Score
+	for _, a := range nca.CapacityClaimAllocations {
+		score += a.Score()
+	}
+
+	return score
+}
+
+// CapacityClaimAllocation methods
+
+func (cca *CapacityClaimAllocation) Success() bool {
+	for _, a := range cca.ResourceClaimAllocations {
+		if !a.Success() {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (cca *CapacityClaimAllocation) Score() int {
+	if !cca.Success() {
+		return 0
+	}
+
+	score := 0
+	for _, a := range cca.ResourceClaimAllocations {
+		score += a.Score()
+	}
+
+	return score
+}
+
+// ResourceClaimAllocation methods
+
+func (rca *ResourceClaimAllocation) Success() bool {
+	if rca.FailureSummary != "" {
+		return false
+	}
+
+	if len(rca.PoolAllocations) == 0 {
+		return false
+	}
+
+	for _, a := range rca.PoolAllocations {
+		if !a.Success() {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (rca *ResourceClaimAllocation) Score() int {
+	if !rca.Success() {
+		return 0
+	}
+
+	score := 0
+	for _, a := range rca.PoolAllocations {
+		score += a.Score
 	}
 
 	return score
@@ -302,7 +359,7 @@ func (nca *NodeCapacityAllocation) Score() int {
 // PoolCapacityAlloction methods
 
 func (pca *PoolCapacityAllocation) Success() bool {
-	return pca.FailureSummary == "" && len(pca.FailureDetails) == 0 && len(pca.Allocations) > 0
+	return pca.FailureSummary == "" && len(pca.FailureDetails) == 0 && len(pca.CapacityAllocations) > 0
 }
 
 func (pca *PoolCapacityAllocation) FailureReason() string {

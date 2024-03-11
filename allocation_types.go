@@ -6,23 +6,42 @@ package main
 // the general framework should be extensible across multi-pod workloads and
 // multi-node capacity.
 
+// NodeCapacityAllocation contains the results of an attempt to satisfy a
+// set of CapacityClaims (e.g., for a pod) against a node.
 type NodeCapacityAllocation struct {
-	NodeName       string                   `json:"nodeName"`
-	Allocations    []PoolCapacityAllocation `json:"allocations,omitempty"`
-	FailureSummary string                   `json:"failureSummary,omitempty"`
-	FailureDetails []string                 `json:"failureDetails,omitempty"`
+	NodeName                 string                    `json:"nodeName"`
+	CapacityClaimAllocations []CapacityClaimAllocation `json:"capacityClaimAllocations"`
 }
 
+// CapacityClaimAlloction contains the results of an attempt to satisfy a
+// CapacityClaim against a collection of pools (typically a node)
+type CapacityClaimAllocation struct {
+	ClaimName                string                    `json:"claimName"`
+	ResourceClaimAllocations []ResourceClaimAllocation `json:"resourceClaimAllocations,omitempty"`
+}
+
+// ResourceClaimAllocation contains the results of an attempt to sastify a
+// ResourceClaim against a collection of pools (typically a node)
+type ResourceClaimAllocation struct {
+	ClaimName       string                   `json:"claimName"`
+	PoolAllocations []PoolCapacityAllocation `json:"poolAllocations"`
+	FailureSummary  string                   `json:"failureSummary,omitempty"`
+	FailureDetails  []string                 `json:"failureDetails,omitempty"`
+}
+
+// PoolCapacityAllocation contains the results of an attempt to sastisfy a
+// resource claim against a specific resource pool.
 type PoolCapacityAllocation struct {
-	Driver         string               `json:"driver"`
-	PoolName       string               `json:"poolName"`
-	ResourceName   string               `json:"resourceName"`
-	Allocations    []CapacityAllocation `json:"allocations"`
-	Score          int                  `json:"score"`
-	FailureSummary string               `json:"failureSummary,omitempty"`
-	FailureDetails []string             `json:"failureDetails,omitempty"`
+	PoolName            string               `json:"poolName"`
+	ResourceName        string               `json:"resourceName"`
+	CapacityAllocations []CapacityAllocation `json:"capacityAllocations"`
+	Score               int                  `json:"score"`
+	FailureSummary      string               `json:"failureSummary,omitempty"`
+	FailureDetails      []string             `json:"failureDetails,omitempty"`
 }
 
+// CapacityAllocation is a specific set of capacity allocations and their
+// topology assigments.
 type CapacityAllocation struct {
 	CapacityRequest `json:",inline"`
 
@@ -34,6 +53,7 @@ type CapacityAllocation struct {
 	Topologies []TopologyAssignment `json:"topologies,omitempty"`
 }
 
+// TopologyAssignment contains the specific topology from which a capacity is drawn.
 type TopologyAssignment struct {
 	Type string `json:"type"`
 	Name string `json:"name"`

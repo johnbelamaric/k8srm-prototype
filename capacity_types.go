@@ -14,8 +14,8 @@ type NodeResources struct {
 }
 
 type ResourcePool struct {
-	Driver string `json:"driver"`
 	Name   string `json:"name"`
+	Driver string `json:"driver"`
 
 	// attributes for constraints at the pool level
 	Attributes []Attribute `json:"attributes,omitempty"`
@@ -78,9 +78,16 @@ type SemVer string
 // if that node assignment can meet the topology constraint in the request
 // based upon that policy.
 type Topology struct {
-	Name      string `json:"name"`
-	Type      string `json:"type"`
-	Aggregate bool   `json:"aggregate"` // if true, capacity can be aggregated across this topology
+	Name string `json:"name"`
+	Type string `json:"type"`
+
+	// AggregateInResource allows a claim to be satisfied by capacities from
+	// different topologies, but in the same resource.
+	AggregateInResource bool `json:"aggregateInResource"`
+
+	// AggregateInPool allows a claim to be satisfied by capacities from different
+	// topologies, but withing the same resource pool
+	AggregateInPool bool `json:"aggregateInPool"`
 }
 
 type ResourceCounter struct {
