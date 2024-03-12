@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"math/big"
 	"sigs.k8s.io/yaml"
+	"sort"
 	"strings"
 )
 
@@ -169,6 +170,66 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 
 // Resource methods
 
+// ReduceCapacity deducts the allocation from the resource so that subsequent
+// requests take already allocated capacities into account. This is not how we
+// would do it in the real model, because we want drivers to publish capacity without
+// tracking allocations. But it's convenient in the prototype.
+func (r *Resource) ReduceCapacity(allocations []CapacityAllocation) error {
+	// Capacity allocations should contain enough information to do this
+
+	// index our capacities by their unique topologies
+	capMap := make(map[string]int)
+	for i, capacity := range r.Capacities {
+		capMap[r.capKey(capacity)] = i
+	}
+
+	for _, ca := range allocations {
+		idx, ok := capMap[ca.capKey()]
+		if !ok {
+			return fmt.Errorf("allocated capacity %q not found in resource capacities", ca.capKey())
+		}
+		fmt.Printf("Reducing %v by %v\n", r.Capacities[idx], ca)
+		var err error
+		r.Capacities[idx], err = r.Capacities[idx].reduce(ca.CapacityRequest)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("got %v\n", r.Capacities[idx])
+	}
+
+	return nil
+}
+
+func (ca *CapacityAllocation) capKey() string {
+	var keyList, topoList []string
+	for _, ta := range ca.Topologies {
+		topoList = append(topoList, fmt.Sprintf("%s=%s", ta.Type, ta.Name))
+	}
+	sort.Strings(topoList)
+	keyList = append(keyList, ca.CapacityRequest.Capacity)
+	keyList = append(keyList, topoList...)
+	return strings.Join(keyList, ";")
+}
+
+func (r *Resource) capKey(capacity Capacity) string {
+	topos := make(map[string]string)
+	for _, t := range r.Topologies {
+		topos[t.Type] = t.Name
+	}
+	for _, t := range capacity.Topologies {
+		topos[t.Type] = t.Name
+	}
+
+	var keyList, topoList []string
+	for k, v := range topos {
+		topoList = append(topoList, fmt.Sprintf("%s=%s", k, v))
+	}
+	sort.Strings(topoList)
+	keyList = append(keyList, capacity.Name)
+	keyList = append(keyList, topoList...)
+	return strings.Join(keyList, ";")
+}
+
 func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityAllocation, string) {
 	/* Not ready to consider topology yet
 	*
@@ -260,6 +321,36 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityAllocation, erro
 	}
 
 	return nil, fmt.Errorf("request/capacity type mismatch")
+}
+
+// reduce applies a CapacityRequest and returns a reduced Capacity. Note that
+// this assumes the CapacityRequest is one that has been returned by
+// AllocateCapacity and therefore does no validation. In particular,
+// block sizes will not be honored; that should already have been done
+func (c Capacity) reduce(cr CapacityRequest) (Capacity, error) {
+	if cr.Capacity != c.Name {
+		return Capacity{}, fmt.Errorf("cannot reduce capacity %q using request for %q", c.Name, cr.Capacity)
+	}
+	result := c
+	if c.Counter != nil && cr.Counter != nil {
+		result.Counter.Capacity -= cr.Counter.Request
+		return result, nil
+	}
+
+	if c.Quantity != nil && cr.Quantity != nil {
+		result.Quantity.Capacity.Sub(cr.Quantity.Request)
+		// force caching of string value for test ease
+		_ = result.Quantity.Capacity.String()
+		return result, nil
+	}
+
+	if c.Block != nil && cr.Quantity != nil {
+		result.Block.Capacity.Sub(cr.Quantity.Request)
+		_ = result.Block.Capacity.String()
+		return result, nil
+	}
+
+	return Capacity{}, fmt.Errorf("request/capacity type mismatch")
 }
 
 func roundToBlock(q, size resource.Quantity) resource.Quantity {
