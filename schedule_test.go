@@ -425,7 +425,67 @@ func TestResourceReduceCapacity(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestPoolReduceCapacity(t *testing.T) {
+	basePool := ResourcePool{
+		Name:   "primary",
+		Driver: "kubelet",
+		Resources: []Resource{
+			{
+				Name: "primary",
+				Capacities: []Capacity{
+					{
+						Name:    "pods",
+						Counter: &ResourceCounter{100},
+					},
+					{
+						Name:    "containers",
+						Counter: &ResourceCounter{1000},
+					},
+				},
+			},
+		},
+	}
+
+	singleAllocPool := basePool
+	singleAllocPool.Resources[0].Capacities[0].Counter.Capacity = 96
+
+	testCases := map[string]struct {
+		pool       ResourcePool
+		allocation PoolCapacityAllocation
+		result     ResourcePool
+		expErr     string
+	}{
+		"single allocation": {
+			pool: basePool,
+			allocation: PoolCapacityAllocation{
+				PoolName:     "primary",
+				ResourceName: "primary",
+				CapacityAllocations: []CapacityAllocation{
+					{
+						CapacityRequest: CapacityRequest{
+							Capacity: "pods",
+							Counter:  &ResourceCounterRequest{Request: 4},
+						},
+					},
+				},
+			},
+			result: singleAllocPool,
+		},
+	}
+	for tn, tc := range testCases {
+		t.Run(tn, func(t *testing.T) {
+			result := tc.result
+			err := result.ReduceCapacity(&tc.allocation)
+			if tc.expErr != "" {
+				require.EqualError(t, err, tc.expErr)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.result, result)
+			}
+		})
+	}
 }
 
 func TestSchedulePodForCore(t *testing.T) {

@@ -29,10 +29,6 @@ type Resource struct {
 	// attributes for constraints
 	Attributes []Attribute `json:"attributes,omitempty"`
 
-	// topologies for all capacities, unless the capacity
-	// overrides it
-	Topologies []Topology `json:"topologies,omitempty"`
-
 	// capacities that can be allocated
 	Capacities []Capacity `json:"capacities,omitempty"`
 }

@@ -67,13 +67,7 @@ func genCapPrimaryPool(node, os, kernel, hw string, numa ...numaGen) ResourcePoo
 			{Name: "hardware-platform", StringValue: &hw},
 		},
 		Resources: []Resource{{
-			Name: "primary",
-			Topologies: []Topology{
-				{
-					Name: node,
-					Type: "node",
-				},
-			},
+			Name:       "primary",
 			Capacities: capacities,
 		}},
 	}
@@ -82,6 +76,20 @@ func genCapPrimaryPool(node, os, kernel, hw string, numa ...numaGen) ResourcePoo
 func genCapFoozerResources(start, num int, model, version, conn, net, mem, foos string, vfs int64) []Resource {
 	var resources []Resource
 	for i := start; i < (start + num); i++ {
+		topos := []Topology{
+			{
+				Name:                fmt.Sprintf("numa-%d", i/2),
+				Type:                "numa",
+				AggregateInResource: true,
+				AggregateInPool:     false,
+			},
+			{
+				Name:                fmt.Sprintf("pci-%d", i%2),
+				Type:                "pci",
+				AggregateInResource: true,
+				AggregateInPool:     false,
+			},
+		}
 		resources = append(resources, Resource{
 			Name: fmt.Sprintf("dev-foo-%d", i),
 			Attributes: []Attribute{
@@ -89,38 +97,26 @@ func genCapFoozerResources(start, num int, model, version, conn, net, mem, foos 
 				{Name: "firmware-version", SemVerValue: ptr(SemVer(version))},
 				{Name: "net-speed", QuantityValue: ptr(resource.MustParse(conn))},
 			},
-			Topologies: []Topology{
-				{
-					Name:                net,
-					Type:                "foo-net",
-					AggregateInResource: true,
-					AggregateInPool:     false,
-				},
-				{
-					Name:                fmt.Sprintf("numa-%d", i/2),
-					Type:                "numa",
-					AggregateInResource: true,
-					AggregateInPool:     false,
-				},
-				{
-					Name:                fmt.Sprintf("pci-%d", i%2),
-					Type:                "pci",
-					AggregateInResource: true,
-					AggregateInPool:     false,
-				},
-			},
 			Capacities: []Capacity{
 				{
-					Name:     "example.com/foozer/cores",
-					Quantity: &ResourceQuantity{resource.MustParse(foos)},
+					Name:       "example.com/foozer/cores",
+					Quantity:   &ResourceQuantity{resource.MustParse(foos)},
+					Topologies: topos,
 				},
 				{
-					Name:  "example.com/foozer/memory",
-					Block: &ResourceBlock{resource.MustParse("256Mi"), resource.MustParse(mem)},
+					Name:       "example.com/foozer/memory",
+					Block:      &ResourceBlock{resource.MustParse("256Mi"), resource.MustParse(mem)},
+					Topologies: topos,
 				},
 				{
-					Name:    "sriov-vfs",
+					Name:    "example.com/foozer/interfaces",
 					Counter: &ResourceCounter{vfs},
+					Topologies: append(topos, Topology{
+						Name:                net,
+						Type:                "foo-net",
+						AggregateInResource: true,
+						AggregateInPool:     false,
+					}),
 				},
 			},
 		})
@@ -290,7 +286,7 @@ func genClaimFoozer(name, cores, mem string, vfs int64) ResourceClaim {
 				Quantity: &ResourceQuantityRequest{Request: resource.MustParse(mem)},
 			},
 			{
-				Capacity: "sriov-vfs",
+				Capacity: "example.com/foozer/interfaces",
 				Counter:  &ResourceCounterRequest{Request: vfs},
 			},
 		},

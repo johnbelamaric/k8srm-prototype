@@ -13,6 +13,7 @@ import (
 // This file contains all the functions for scheduling.
 
 // SchedulePod finds the best available node that can accomodate the pod claim
+// Note that for the prototype, no allocation state is kept across calls to this function.
 func SchedulePod(available []NodeResources, pcc *PodCapacityClaim) *NodeCapacityAllocation {
 	var best *NodeCapacityAllocation
 	for _, nr := range available {
@@ -72,15 +73,13 @@ func (nr *NodeResources) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimA
 
 		// find the best pool to satisfy each resource claim
 		// TODO(johnbelamaric): allows splitting a single resource claim across multiple
-		// pools
-		// TODO(johnbelamaric): fix this so the as each claim is sastisfied,
-		// we reduce the pool capacity. Right now if there are multiple claims
-		// for the same pool, we could double-allocate
+		// pools (implement AggregateInPool)
 		var poolResults []*PoolCapacityAllocation
 		var best *PoolCapacityAllocation
+		var idx int
 
 		// find the best pool that can satisfy the claim
-		for _, pool := range nr.Pools {
+		for i, pool := range nr.Pools {
 			poolResult := pool.AllocateCapacity(rc)
 			poolResults = append(poolResults, &poolResult)
 			if !poolResult.Success() {
@@ -88,12 +87,23 @@ func (nr *NodeResources) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimA
 			}
 			if best == nil || best.Score < poolResult.Score {
 				best = &poolResult
+				idx = i
 			}
 		}
+		var err error
 		if best != nil {
-			rca.PoolAllocations = append(rca.PoolAllocations, *best)
-		} else {
+			err = nr.Pools[idx].ReduceCapacity(best)
+			if err == nil {
+				rca.PoolAllocations = append(rca.PoolAllocations, *best)
+			}
+
+		}
+
+		if err != nil || best == nil {
 			rca.FailureSummary = "no resource with sufficient capacity in any pool"
+			if err != nil {
+				rca.FailureSummary = err.Error()
+			}
 			for _, pca := range poolResults {
 				rca.FailureDetails = append(rca.FailureDetails,
 					fmt.Sprintf("%s: %s", pca.PoolName, pca.FailureReason()))
@@ -168,6 +178,27 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 	return result
 }
 
+func (pool *ResourcePool) ReduceCapacity(pca *PoolCapacityAllocation) error {
+	if pool.Name != pca.PoolName {
+		return fmt.Errorf("cannot reduce pool %q capacity using allocation from pool %q", pool.Name, pca.PoolName)
+	}
+
+	// find the resource
+	var r *Resource
+	for i, ri := range pool.Resources {
+		if ri.Name == pca.ResourceName {
+			r = &pool.Resources[i]
+			break
+		}
+	}
+
+	if r == nil {
+		return fmt.Errorf("could not find resource %q in pool %q", pca.ResourceName, pool.Name)
+	}
+
+	return r.ReduceCapacity(pca.CapacityAllocations)
+}
+
 // Resource methods
 
 // ReduceCapacity deducts the allocation from the resource so that subsequent
@@ -188,13 +219,11 @@ func (r *Resource) ReduceCapacity(allocations []CapacityAllocation) error {
 		if !ok {
 			return fmt.Errorf("allocated capacity %q not found in resource capacities", ca.capKey())
 		}
-		fmt.Printf("Reducing %v by %v\n", r.Capacities[idx], ca)
 		var err error
 		r.Capacities[idx], err = r.Capacities[idx].reduce(ca.CapacityRequest)
 		if err != nil {
 			return err
 		}
-		fmt.Printf("got %v\n", r.Capacities[idx])
 	}
 
 	return nil
@@ -213,9 +242,6 @@ func (ca *CapacityAllocation) capKey() string {
 
 func (r *Resource) capKey(capacity Capacity) string {
 	topos := make(map[string]string)
-	for _, t := range r.Topologies {
-		topos[t.Type] = t.Name
-	}
 	for _, t := range capacity.Topologies {
 		topos[t.Type] = t.Name
 	}
@@ -231,29 +257,6 @@ func (r *Resource) capKey(capacity Capacity) string {
 }
 
 func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityAllocation, string) {
-	/* Not ready to consider topology yet
-	*
-	// see what topology constraints we need to consider
-	// here, we combine the topology constraints from the capacity claim (which
-	// apply to all resources), as well as the constraint for this particular claim
-	topoConstraints := make(map[string]bool)
-	for _, t := range cc.Topologies {
-		topoConstraints[t.Type] = true
-	}
-	for _, t := range c.Topologies {
-		topoConstraints[t.Type] = true
-	}
-
-	// flatten capacities when they are aggregatable across
-	// topologies
-	var flat []Capacity
-	for _, r := range pool.Resources {
-		for _, capacity := range r.Allocations {
-			flat = append(flat, capacity)
-		}
-	}
-	*/
-
 	var result []CapacityAllocation
 	// index the capacities in the resource
 	capacityMap := make(map[string]Capacity)
@@ -290,6 +293,7 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityAllocation, erro
 					Capacity: cr.Capacity,
 					Counter:  &ResourceCounterRequest{cr.Counter.Request},
 				},
+				Topologies: c.topologyAssignments(),
 			}, nil
 		}
 		return nil, nil
@@ -302,6 +306,7 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityAllocation, erro
 					Capacity: cr.Capacity,
 					Quantity: &ResourceQuantityRequest{cr.Quantity.Request},
 				},
+				Topologies: c.topologyAssignments(),
 			}, nil
 		}
 		return nil, nil
@@ -315,12 +320,22 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityAllocation, erro
 					Capacity: cr.Capacity,
 					Quantity: &ResourceQuantityRequest{realRequest},
 				},
+				Topologies: c.topologyAssignments(),
 			}, nil
 		}
 		return nil, nil
 	}
 
 	return nil, fmt.Errorf("request/capacity type mismatch")
+}
+
+func (c Capacity) topologyAssignments() []TopologyAssignment {
+	var result []TopologyAssignment
+	for _, t := range c.Topologies {
+		result = append(result, TopologyAssignment{Type: t.Type, Name: t.Name})
+	}
+
+	return result
 }
 
 // reduce applies a CapacityRequest and returns a reduced Capacity. Note that
