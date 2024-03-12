@@ -553,6 +553,52 @@ func TestSchedulePodForCore(t *testing.T) {
 			},
 			expectSuccess: false,
 		},
+		"single pod, multiple containers, with CPU and memory, enough": {
+			claim: PodCapacityClaim{
+				PodClaim: CapacityClaim{
+					Name:   "my-pod",
+					Claims: []ResourceClaim{genClaimPod()},
+				},
+				ContainerClaims: []CapacityClaim{
+					{
+						Name:   "my-container-1",
+						Claims: []ResourceClaim{genClaimContainer("7127m", "8Gi")},
+					},
+					{
+						Name:   "my-container-2",
+						Claims: []ResourceClaim{genClaimContainer("200m", "8Gi")},
+					},
+					{
+						Name:   "my-container-3",
+						Claims: []ResourceClaim{genClaimContainer("200m", "8Gi")},
+					},
+				},
+			},
+			expectSuccess: true,
+		},
+		"single pod, multiple containers, with CPU and memory, not enough": {
+			claim: PodCapacityClaim{
+				PodClaim: CapacityClaim{
+					Name:   "my-pod",
+					Claims: []ResourceClaim{genClaimPod()},
+				},
+				ContainerClaims: []CapacityClaim{
+					{
+						Name:   "my-container-1",
+						Claims: []ResourceClaim{genClaimContainer("7127m", "8Gi")},
+					},
+					{
+						Name:   "my-container-2",
+						Claims: []ResourceClaim{genClaimContainer("8", "8Gi")},
+					},
+					{
+						Name:   "my-container-3",
+						Claims: []ResourceClaim{genClaimContainer("4", "8Gi")},
+					},
+				},
+			},
+			expectSuccess: false,
+		},
 		"no resources for driver": {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
@@ -573,8 +619,8 @@ func TestSchedulePodForCore(t *testing.T) {
 		},
 	}
 
-	capacity := genCapShapeZero(2)
 	for tn, tc := range testCases {
+		capacity := genCapShapeZero(2)
 		t.Run(tn, func(t *testing.T) {
 			fmt.Println("-------------------------------")
 			fmt.Println(tn)
@@ -631,8 +677,8 @@ func TestSchedulePodForFoozer(t *testing.T) {
 		},
 	}
 
-	capacity := genCapShapeOne(2)
 	for tn, tc := range testCases {
+		capacity := genCapShapeOne(2)
 		t.Run(tn, func(t *testing.T) {
 			fmt.Println("-------------------------------")
 			fmt.Println(tn)
@@ -689,8 +735,8 @@ func TestSchedulePodForBigFoozer(t *testing.T) {
 		},
 	}
 
-	capacity := genCapShapeTwo(2, 4)
 	for tn, tc := range testCases {
+		capacity := genCapShapeTwo(2, 4)
 		t.Run(tn, func(t *testing.T) {
 			fmt.Println("-------------------------------")
 			fmt.Println(tn)

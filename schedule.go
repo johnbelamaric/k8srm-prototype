@@ -13,7 +13,9 @@ import (
 // This file contains all the functions for scheduling.
 
 // SchedulePod finds the best available node that can accomodate the pod claim
-// Note that for the prototype, no allocation state is kept across calls to this function.
+// Note that for the prototype, no allocation state is kept across calls to this function,
+// but since capacity values are often pointers, you really should start with a fresh
+// NodeResources for testing
 func SchedulePod(available []NodeResources, pcc *PodCapacityClaim) *NodeCapacityAllocation {
 	var best *NodeCapacityAllocation
 	for _, nr := range available {
