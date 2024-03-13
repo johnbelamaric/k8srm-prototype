@@ -74,7 +74,7 @@ func TestCapacityReduce(t *testing.T) {
 func TestResourceReduceCapacity(t *testing.T) {
 	testCases := map[string]struct {
 		resource    Resource
-		allocations []CapacityAllocation
+		allocations []CapacityResult
 		result      Resource
 		expErr      string
 	}{
@@ -88,7 +88,7 @@ func TestResourceReduceCapacity(t *testing.T) {
 					},
 				},
 			},
-			allocations: []CapacityAllocation{
+			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
 						Capacity: "invalid-counter-test",
@@ -108,7 +108,7 @@ func TestResourceReduceCapacity(t *testing.T) {
 					},
 				},
 			},
-			allocations: []CapacityAllocation{
+			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
 						Capacity: "counter-test",
@@ -134,7 +134,7 @@ func TestResourceReduceCapacity(t *testing.T) {
 					},
 				},
 			},
-			allocations: []CapacityAllocation{
+			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
 						Capacity: "counter-test",
@@ -162,7 +162,7 @@ func TestResourceReduceCapacity(t *testing.T) {
 					},
 				},
 			},
-			allocations: []CapacityAllocation{
+			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
 						Capacity: "quantity-test",
@@ -193,7 +193,7 @@ func TestResourceReduceCapacity(t *testing.T) {
 					},
 				},
 			},
-			allocations: []CapacityAllocation{
+			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
 						Capacity: "block-test",
@@ -228,7 +228,7 @@ func TestResourceReduceCapacity(t *testing.T) {
 					},
 				},
 			},
-			allocations: []CapacityAllocation{
+			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
 						Capacity: "counter-test",
@@ -264,7 +264,7 @@ func TestResourceReduceCapacity(t *testing.T) {
 					},
 				},
 			},
-			allocations: []CapacityAllocation{
+			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
 						Capacity: "counter-test",
@@ -309,7 +309,7 @@ func TestResourceReduceCapacity(t *testing.T) {
 					},
 				},
 			},
-			allocations: []CapacityAllocation{
+			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
 						Capacity: "counter-test",
@@ -368,7 +368,7 @@ func TestResourceReduceCapacity(t *testing.T) {
 					},
 				},
 			},
-			allocations: []CapacityAllocation{
+			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
 						Capacity: "counter-test",
@@ -451,16 +451,16 @@ func TestPoolReduceCapacity(t *testing.T) {
 
 	testCases := map[string]struct {
 		pool       ResourcePool
-		allocation PoolCapacityAllocation
+		allocation PoolResult
 		result     ResourcePool
 		expErr     string
 	}{
 		"single allocation": {
 			pool: basePool,
-			allocation: PoolCapacityAllocation{
+			allocation: PoolResult{
 				PoolName:     "primary",
 				ResourceName: "primary",
-				CapacityAllocations: []CapacityAllocation{
+				CapacityResults: []CapacityResult{
 					{
 						CapacityRequest: CapacityRequest{
 							Capacity: "pods",
