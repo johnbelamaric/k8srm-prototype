@@ -15,7 +15,11 @@
 .DEFAULT_GOAL := all
 
 .PHONY: all
-all: test build
+all: fmt test build
+
+.PHONY: fmt
+fmt:
+	gofmt -s -w *.go
 
 .PHONY: test
 test:

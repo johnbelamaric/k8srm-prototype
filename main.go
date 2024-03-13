@@ -17,38 +17,30 @@ func init() {
 
 func usage() {
 	fmt.Fprintf(flag.CommandLine.Output(), "usage: %s -nodes <file> -claim <file> pod\n", os.Args[0])
+	fmt.Fprintf(flag.CommandLine.Output(), "       %s gen-example <shape>\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
-func genExample() {
-	nrs := genCapShapeZero(1)
+func genCapacityExample(shape string) {
+	var nrs []NodeResources
 
-	b, _ := yaml.Marshal(nrs)
-	fmt.Println(string(b))
-	fmt.Println("---")
-	claim := PodCapacityClaim{
-		PodClaim: CapacityClaim{
-			Name:   "my-pod",
-			Claims: []ResourceClaim{genClaimPod()},
-		},
-		ContainerClaims: []CapacityClaim{
-			{
-				Name:   "my-container-1",
-				Claims: []ResourceClaim{genClaimContainer("7127m", "8Gi")},
-			},
-			{
-				Name:   "my-container-2",
-				Claims: []ResourceClaim{genClaimContainer("200m", "8Gi")},
-			},
-			{
-				Name:   "my-container-3",
-				Claims: []ResourceClaim{genClaimContainer("200m", "8Gi")},
-			},
-		},
+	switch shape {
+	case "0":
+		nrs = genCapShapeZero(1)
+	case "1":
+		nrs = genCapShapeOne(1)
+	case "2":
+		nrs = genCapShapeTwo(1, 2)
+	case "3":
+		nrs = genCapShapeThree(1, 2)
+	default:
+		fmt.Printf("unknown shape %q\n", shape)
 	}
 
-	b, _ = yaml.Marshal(claim)
-	fmt.Println(string(b))
+	if nrs != nil {
+		b, _ := yaml.Marshal(nrs)
+		fmt.Println(string(b))
+	}
 }
 
 func unmarshalFile(file string, obj interface{}) error {
@@ -84,15 +76,19 @@ func schedulePod(nodesFile, claimFile string) error {
 func main() {
 	flag.Parse()
 
-	if len(flag.Args()) != 1 {
+	args := flag.Args()
+	if len(args) < 1 {
 		usage()
 		os.Exit(1)
 	}
 
-	cmd := flag.Args()[0]
-	switch cmd {
+	switch args[0] {
 	case "gen-example":
-		genExample()
+		shape := "0"
+		if len(args) > 1 {
+			shape = args[1]
+		}
+		genCapacityExample(shape)
 		break
 	case "pod":
 		err := schedulePod(nodesFlag, claimFlag)
