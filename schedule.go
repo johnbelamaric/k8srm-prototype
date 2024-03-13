@@ -358,7 +358,64 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, *Capacit
 			nil
 	}
 
-	return nil, &cr, fmt.Errorf("request/capacity type mismatch")
+	if c.AccessMode != nil && cr.AccessMode != nil {
+		return c.allocateAccessModeRequest(cr)
+	}
+
+	return nil, &cr, fmt.Errorf("request/capacity type mismatch (%v, %v)", c, cr)
+}
+
+func (c Capacity) allocateAccessModeRequest(cr CapacityRequest) (*CapacityResult, *CapacityRequest, error) {
+
+	// upgrade the requested mode based on the capacity's configuration
+	requestMode := cr.AccessMode.Request
+	if requestMode == ReadOnlyShared && !c.AccessMode.AllowReadOnlyShared {
+		requestMode = ReadWriteShared
+	}
+
+	if requestMode == ReadWriteShared && !c.AccessMode.AllowReadWriteShared {
+		requestMode = WriteExclusive
+	}
+
+	if requestMode == WriteExclusive && !c.AccessMode.AllowWriteExclusive {
+		requestMode = ReadWriteExclusive
+	}
+
+	blockers := 0
+	switch requestMode {
+	case ReadWriteExclusive:
+		blockers += c.AccessMode.ReadOnlyShared
+		blockers += c.AccessMode.ReadWriteShared
+		blockers += c.AccessMode.WriteExclusive
+		blockers += c.AccessMode.ReadWriteExclusive
+
+	case WriteExclusive:
+		blockers += c.AccessMode.ReadWriteShared
+		blockers += c.AccessMode.WriteExclusive
+		blockers += c.AccessMode.ReadWriteExclusive
+
+	case ReadWriteShared:
+		blockers += c.AccessMode.WriteExclusive
+		blockers += c.AccessMode.ReadWriteExclusive
+
+	case ReadOnlyShared:
+		blockers += c.AccessMode.ReadWriteExclusive
+
+	default:
+		return nil, &cr, fmt.Errorf("invalid request access mode %q", requestMode)
+	}
+
+	if blockers > 0 {
+		return nil, &cr, nil
+	}
+
+	return &CapacityResult{
+		CapacityRequest: CapacityRequest{
+			Capacity:   cr.Capacity,
+			AccessMode: &ResourceAccessModeRequest{requestMode},
+		},
+		Topologies: c.topologyAssignments(),
+	}, nil, nil
 }
 
 func (c Capacity) topologyAssignments() []TopologyAssignment {
@@ -380,11 +437,15 @@ func (c Capacity) reduce(cr CapacityRequest) (Capacity, error) {
 	}
 	result := c
 	if c.Counter != nil && cr.Counter != nil {
+		copied := *c.Counter
+		result.Counter = &copied
 		result.Counter.Capacity -= cr.Counter.Request
 		return result, nil
 	}
 
 	if c.Quantity != nil && cr.Quantity != nil {
+		copied := *c.Quantity
+		result.Quantity = &copied
 		result.Quantity.Capacity.Sub(cr.Quantity.Request)
 		// force caching of string value for test ease
 		_ = result.Quantity.Capacity.String()
@@ -392,8 +453,26 @@ func (c Capacity) reduce(cr CapacityRequest) (Capacity, error) {
 	}
 
 	if c.Block != nil && cr.Quantity != nil {
+		copied := *c.Block
+		result.Block = &copied
 		result.Block.Capacity.Sub(cr.Quantity.Request)
 		_ = result.Block.Capacity.String()
+		return result, nil
+	}
+
+	if c.AccessMode != nil && cr.AccessMode != nil {
+		copied := *c.AccessMode
+		result.AccessMode = &copied
+		switch cr.AccessMode.Request {
+		case ReadOnlyShared:
+			result.AccessMode.ReadOnlyShared += 1
+		case ReadWriteShared:
+			result.AccessMode.ReadWriteShared += 1
+		case WriteExclusive:
+			result.AccessMode.WriteExclusive += 1
+		case ReadWriteExclusive:
+			result.AccessMode.ReadWriteExclusive += 1
+		}
 		return result, nil
 	}
 

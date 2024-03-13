@@ -41,6 +41,11 @@
       - name: net-speed
         quantityValue: 10G
       capacities:
+      - name: access
+        accessMode:
+          allowReadOnlyShared: true
+          allowReadWriteShared: false
+          allowWriteExclusive: true
       - name: example.com/foozer/cores
         quantity:
           capacity: "8"

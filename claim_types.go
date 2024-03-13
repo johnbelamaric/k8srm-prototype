@@ -98,12 +98,13 @@ type CapacityRequest struct {
 	Capacity string `json:"capacity"`
 
 	// one of these must be populated
-	// note that we only need two different type of capacity requests
-	// even though we have three different types of capacity models
+	// note that we only need three different type of capacity requests
+	// even though we have four different types of capacity models
 	// the ResourceQuantity and ResourceBlock capacity models both
 	// are drawn down on via the ResourceQuantityRequest type
-	Counter  *ResourceCounterRequest  `json:"counter,omitempty"`
-	Quantity *ResourceQuantityRequest `json:"quantity,omitempty"`
+	Counter    *ResourceCounterRequest    `json:"counter,omitempty"`
+	Quantity   *ResourceQuantityRequest   `json:"quantity,omitempty"`
+	AccessMode *ResourceAccessModeRequest `json:"accessMode,omitempty"`
 }
 
 type ResourceCounterRequest struct {
@@ -114,4 +115,18 @@ type ResourceCounterRequest struct {
 type ResourceQuantityRequest struct {
 	// +required
 	Request resource.Quantity `json:"request"`
+}
+
+type CapacityAccessMode string
+
+const (
+	ReadOnlyShared     = "ReadOnlyShared"
+	ReadWriteShared    = "ReadWriteShared"
+	WriteExclusive     = "WriteExclusive"
+	ReadWriteExclusive = "ReadWriteExclusive"
+)
+
+type ResourceAccessModeRequest struct {
+	// +required
+	Request CapacityAccessMode `json:"request"`
 }

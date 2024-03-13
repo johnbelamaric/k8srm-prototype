@@ -64,6 +64,11 @@
       - name: net-speed
         quantityValue: 40G
       capacities:
+      - name: access
+        accessMode:
+          allowReadOnlyShared: true
+          allowReadWriteShared: true
+          allowWriteExclusive: true
       - name: example.com/foozer/cores
         quantity:
           capacity: "16"
@@ -107,6 +112,11 @@
       - name: net-speed
         quantityValue: 40G
       capacities:
+      - name: access
+        accessMode:
+          allowReadOnlyShared: true
+          allowReadWriteShared: true
+          allowWriteExclusive: true
       - name: example.com/foozer/cores
         quantity:
           capacity: "16"
@@ -150,6 +160,11 @@
       - name: net-speed
         quantityValue: 40G
       capacities:
+      - name: access
+        accessMode:
+          allowReadOnlyShared: true
+          allowReadWriteShared: true
+          allowWriteExclusive: true
       - name: example.com/foozer/cores
         quantity:
           capacity: "16"
@@ -193,6 +208,11 @@
       - name: net-speed
         quantityValue: 40G
       capacities:
+      - name: access
+        accessMode:
+          allowReadOnlyShared: true
+          allowReadWriteShared: true
+          allowWriteExclusive: true
       - name: example.com/foozer/cores
         quantity:
           capacity: "16"
@@ -236,6 +256,11 @@
       - name: net-speed
         quantityValue: 40G
       capacities:
+      - name: access
+        accessMode:
+          allowReadOnlyShared: true
+          allowReadWriteShared: true
+          allowWriteExclusive: true
       - name: example.com/foozer/cores
         quantity:
           capacity: "16"
@@ -279,6 +304,11 @@
       - name: net-speed
         quantityValue: 40G
       capacities:
+      - name: access
+        accessMode:
+          allowReadOnlyShared: true
+          allowReadWriteShared: true
+          allowWriteExclusive: true
       - name: example.com/foozer/cores
         quantity:
           capacity: "16"
@@ -322,6 +352,11 @@
       - name: net-speed
         quantityValue: 40G
       capacities:
+      - name: access
+        accessMode:
+          allowReadOnlyShared: true
+          allowReadWriteShared: true
+          allowWriteExclusive: true
       - name: example.com/foozer/cores
         quantity:
           capacity: "16"
@@ -365,6 +400,11 @@
       - name: net-speed
         quantityValue: 40G
       capacities:
+      - name: access
+        accessMode:
+          allowReadOnlyShared: true
+          allowReadWriteShared: true
+          allowWriteExclusive: true
       - name: example.com/foozer/cores
         quantity:
           capacity: "16"

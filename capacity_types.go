@@ -43,6 +43,11 @@ type Capacity struct {
 	//  - counter: integer capacity decremented by integers
 	//  - quantity: resource.Quantity capacity decremented by quantities
 	//  - block:  resource.Quantity capacity decremented in blocks
+	//  - accessMode: allows various controlled access:
+	//       - readonly-shared: allowed with other consumers using *-shared, write-exclusive
+	//       - readwrite-shared: allowed with other consumers using *-shared
+	//       - write-exclusive: allowed other consumers using readonly-shared
+	//       - readwrite-exclusive: no other consumers allowed
 
 	// +optional
 	Counter *ResourceCounter `json:"counter,omitempty"`
@@ -52,6 +57,9 @@ type Capacity struct {
 
 	// +optional
 	Block *ResourceBlock `json:"block,omitempty"`
+
+	// +optional
+	AccessMode *ResourceAccessMode `json:"accessMode,omitempty"`
 }
 
 type Attribute struct {
@@ -93,4 +101,19 @@ type ResourceQuantity struct {
 type ResourceBlock struct {
 	Size     resource.Quantity `json:"size"`
 	Capacity resource.Quantity `json:"capacity"`
+}
+
+type ResourceAccessMode struct {
+	// if not allowed, any requests for that access mode
+	// will be converted to a request for the next highest
+	// allowed access mode.
+	AllowReadOnlyShared  bool `json:"allowReadOnlyShared"`
+	AllowReadWriteShared bool `json:"allowReadWriteShared"`
+	AllowWriteExclusive  bool `json:"allowWriteExclusive"`
+
+	// tracks reference counts for each access mode
+	ReadOnlyShared     int `json:"readOnlyShared"`
+	ReadWriteShared    int `json:"readWriteShared"`
+	WriteExclusive     int `json:"writeExclusive"`
+	ReadWriteExclusive int `json:"readWriteExclusive"`
 }

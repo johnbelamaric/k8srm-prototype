@@ -60,6 +60,46 @@ func TestCapacityReduce(t *testing.T) {
 				},
 			},
 		},
+		"accessMode-readonlyshared": {
+			capacity: Capacity{
+				Name: "access-test",
+				AccessMode: &ResourceAccessMode{
+					AllowReadOnlyShared: true,
+					ReadOnlyShared:      3,
+				},
+			},
+			request: CapacityRequest{
+				Capacity:   "access-test",
+				AccessMode: &ResourceAccessModeRequest{Request: ReadOnlyShared},
+			},
+			result: Capacity{
+				Name: "access-test",
+				AccessMode: &ResourceAccessMode{
+					AllowReadOnlyShared: true,
+					ReadOnlyShared:      4,
+				},
+			},
+		},
+		"accessMode-readwriteshared": {
+			capacity: Capacity{
+				Name: "access-test",
+				AccessMode: &ResourceAccessMode{
+					AllowReadWriteShared: true,
+					ReadWriteShared:      3,
+				},
+			},
+			request: CapacityRequest{
+				Capacity:   "access-test",
+				AccessMode: &ResourceAccessModeRequest{Request: ReadWriteShared},
+			},
+			result: Capacity{
+				Name: "access-test",
+				AccessMode: &ResourceAccessMode{
+					AllowReadWriteShared: true,
+					ReadWriteShared:      4,
+				},
+			},
+		},
 	}
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
