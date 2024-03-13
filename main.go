@@ -7,11 +7,13 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-var nodesFlag, claimFlag string
+var flagNodes, flagClaim string
+var flagVerbose bool
 
 func init() {
-	flag.StringVar(&nodesFlag, "nodes", "", "file with []NodeResources yaml")
-	flag.StringVar(&claimFlag, "claim", "", "file with PodCapacityClaim yaml")
+	flag.StringVar(&flagNodes, "nodes", "", "file with []NodeResources yaml")
+	flag.StringVar(&flagClaim, "claim", "", "file with PodCapacityClaim yaml")
+	flag.BoolVar(&flagVerbose, "v", false, "verbose output")
 	flag.Usage = usage
 }
 
@@ -66,9 +68,25 @@ func schedulePod(nodesFile, claimFile string) error {
 		return err
 	}
 
-	allocation := SchedulePod(nrs, claim)
-	b, _ := yaml.Marshal(allocation)
-	fmt.Println(string(b))
+	results, best := EvaluateNodesForPod(nrs, claim)
+	if best < 0 {
+		fmt.Println("failed to satisfy the claim")
+		if flagVerbose {
+			for _, nar := range results {
+				fmt.Println("-------------------------------")
+				nar.PrintSummary()
+			}
+		}
+	} else {
+		fmt.Println("succeeded in satisfying the claim")
+		fmt.Println("-------------------------------")
+		if flagVerbose {
+			b, _ := yaml.Marshal(results[best])
+			fmt.Println(string(b))
+		} else {
+			results[best].PrintSummary()
+		}
+	}
 
 	return nil
 }
@@ -91,7 +109,7 @@ func main() {
 		genCapacityExample(shape)
 		break
 	case "pod":
-		err := schedulePod(nodesFlag, claimFlag)
+		err := schedulePod(flagNodes, flagClaim)
 		if err != nil {
 			fmt.Fprintf(flag.CommandLine.Output(), "error: %s\n", err)
 			os.Exit(1)

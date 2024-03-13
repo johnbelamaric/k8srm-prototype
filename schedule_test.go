@@ -458,16 +458,21 @@ func TestPoolReduceCapacity(t *testing.T) {
 		"single allocation": {
 			pool: basePool,
 			allocation: PoolResult{
-				PoolName:     "primary",
-				ResourceName: "primary",
-				CapacityResults: []CapacityResult{
+				PoolName: "primary",
+				ResourceResults: []ResourceResult{
 					{
-						CapacityRequest: CapacityRequest{
-							Capacity: "pods",
-							Counter:  &ResourceCounterRequest{Request: 4},
+						ResourceName: "primary",
+						CapacityResults: []CapacityResult{
+							{
+								CapacityRequest: CapacityRequest{
+									Capacity: "pods",
+									Counter:  &ResourceCounterRequest{Request: 4},
+								},
+							},
 						},
 					},
 				},
+				Best: 0,
 			},
 			result: singleAllocPool,
 		},
@@ -475,7 +480,7 @@ func TestPoolReduceCapacity(t *testing.T) {
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
 			result := tc.result
-			err := result.ReduceCapacity(&tc.allocation)
+			err := result.ReduceCapacity(tc.allocation)
 			if tc.expErr != "" {
 				require.EqualError(t, err, tc.expErr)
 			} else {

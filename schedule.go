@@ -43,9 +43,7 @@ func EvaluateNodesForPod(available []NodeResources, pcc PodCapacityClaim) ([]Nod
 
 // NodeResources methods
 
-// AllocateForPod evaluates if a node can fit a pod claim, and if so, returns
-// the allocation (including topology assignments) and a score.
-// If not, returns the reason why the allocation is impossible.
+// AllocatePodCapacityClaim evaluates the capacity claims for a pod.
 func (nr *NodeResources) AllocatePodCapacityClaim(pcc PodCapacityClaim) NodeAllocationResult {
 	result := NodeAllocationResult{NodeName: nr.Name}
 
@@ -59,52 +57,36 @@ func (nr *NodeResources) AllocatePodCapacityClaim(pcc PodCapacityClaim) NodeAllo
 }
 
 func (nr *NodeResources) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimResult {
-	result := CapacityClaimResult{ClaimName: cc.Name}
+	ccResult := CapacityClaimResult{ClaimName: cc.Name}
 
 	for _, rc := range cc.Claims {
-		rca := ResourceClaimResult{ClaimName: cc.Name}
+		rcResult := ResourceClaimResult{ClaimName: rc.Name}
 
-		// find the best pool to satisfy each resource claim
-		// TODO(johnbelamaric): allow splitting a single resource claim across multiple
-		// pools (subject to the node? or some topology?)
-		var poolResults []*PoolResult
-		var best *PoolResult
-		var idx int
-
-		// find the best pool that can satisfy the claim
+		best := -1
 		for i, pool := range nr.Pools {
-			poolResult := pool.AllocateCapacity(rc)
-			poolResults = append(poolResults, &poolResult)
-			if !poolResult.Success() {
+			rcResult.PoolResults = append(rcResult.PoolResults, pool.AllocateCapacity(rc))
+			if !rcResult.PoolResults[i].Success() {
 				continue
 			}
-			if best == nil || best.Score < poolResult.Score {
-				best = &poolResult
-				idx = i
+			if best < 0 || rcResult.PoolResults[best].Score() < rcResult.PoolResults[i].Score() {
+				best = i
 			}
 		}
-		var err error
-		if best != nil {
-			err = nr.Pools[idx].ReduceCapacity(best)
-			if err == nil {
-				rca.PoolResults = append(rca.PoolResults, *best)
-			}
 
-		}
+		rcResult.Best = best
 
-		if err != nil || best == nil {
-			rca.FailureSummary = "no resource with sufficient capacity in any pool"
+		if best < 0 {
+			rcResult.FailureReason = "no pool found that can satisfy the claim"
+		} else {
+			err := nr.Pools[best].ReduceCapacity(rcResult.PoolResults[best])
 			if err != nil {
-				rca.FailureSummary = err.Error()
-			}
-			for _, pca := range poolResults {
-				rca.FailureDetails = append(rca.FailureDetails,
-					fmt.Sprintf("%s: %s", pca.PoolName, pca.FailureReason()))
+				rcResult.FailureReason = fmt.Sprintf("error trying to reduce pool capacity: %s", err)
 			}
 		}
-		result.ResourceClaimResults = append(result.ResourceClaimResults, rca)
+
+		ccResult.ResourceClaimResults = append(ccResult.ResourceClaimResults, rcResult)
 	}
-	return result
+	return ccResult
 }
 
 // ResourcePool methods
@@ -112,84 +94,73 @@ func (nr *NodeResources) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimR
 // AllocateCapacity will evaluate a resource claim against the pool, and
 // return the options for making those allocations against the pools resources.
 func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolResult {
-	result := PoolResult{PoolName: pool.Name}
+	result := PoolResult{PoolName: pool.Name, Best: -1}
 
 	if rc.Driver != "" && rc.Driver != pool.Driver {
-		result.FailureSummary = "driver mismatch"
+		result.FailureReason = fmt.Sprintf("pool driver %q mismatch claim driver %q", pool.Driver, rc.Driver)
 		return result
 	}
 
-	var failures []string
-
+	best := -1
 	// filter out resources that do not meet the constraints
-	var resources []Resource
-	for _, r := range pool.Resources {
+	for i, r := range pool.Resources {
+		rResult := ResourceResult{ResourceName: r.Name}
 		pass, err := r.MeetsConstraints(rc.Constraints, pool.Attributes)
 		if err != nil {
-			result.FailureSummary = fmt.Sprintf("error evaluating resource %q against constraints: %s", r.Name, err)
-			return result
+			rResult.FailureReason = fmt.Sprintf("error evaluating against constraints: %s", err)
+			result.ResourceResults = append(result.ResourceResults, rResult)
+			continue
 		}
 		if !pass {
-			failures = append(failures, fmt.Sprintf("%s: does not meet constraints", r.Name))
+			rResult.FailureReason = "does not meet constraints"
+			result.ResourceResults = append(result.ResourceResults, rResult)
 			continue
 		}
 
-		resources = append(resources, r)
-	}
-
-	if len(resources) == 0 {
-		result.FailureSummary = fmt.Sprintf("no resources meet the constraints %v", rc.Constraints)
-		return result
-	}
-
-	// find the first resource that can satisfy the claim
-	for _, r := range resources {
 		capacities, reason := r.AllocateCapacity(rc)
 		if len(capacities) == 0 && reason == "" {
 			reason = "unknown"
 		}
 
 		if reason != "" {
-			failures = append(failures, fmt.Sprintf("%s: %s", r.Name, reason))
+			rResult.FailureReason = reason
+			result.ResourceResults = append(result.ResourceResults, rResult)
 			continue
 		}
 
-		//TODO(johnbelamaric): loop through all instead of using first, add scoring and splitting
-		// across resources if possible (implement GroupInPool)
-		result.Score = 1
-		result.CapacityResults = capacities
-		result.ResourceName = r.Name
-		break
+		//TODO(johnbelamaric): add scoring
+		rResult.Score = 100
+		rResult.CapacityResults = capacities
+		result.ResourceResults = append(result.ResourceResults, rResult)
+
+		if best < 0 || result.ResourceResults[best].Score < rResult.Score {
+			best = i
+		}
 	}
 
-	if len(result.CapacityResults) == 0 {
-		result.FailureSummary = "no resources with sufficient capacity"
-		result.FailureDetails = failures
-		return result
+	result.Best = best
+
+	if best < 0 {
+		result.FailureReason = "no resources in pool with sufficient capacity"
 	}
 
 	return result
 }
 
-func (pool *ResourcePool) ReduceCapacity(pca *PoolResult) error {
-	if pool.Name != pca.PoolName {
-		return fmt.Errorf("cannot reduce pool %q capacity using allocation from pool %q", pool.Name, pca.PoolName)
+func (pool *ResourcePool) ReduceCapacity(pr PoolResult) error {
+	if pool.Name != pr.PoolName {
+		return fmt.Errorf("cannot reduce pool %q capacity using allocation from pool %q", pool.Name, pr.PoolName)
 	}
 
-	// find the resource
-	var r *Resource
-	for i, ri := range pool.Resources {
-		if ri.Name == pca.ResourceName {
-			r = &pool.Resources[i]
-			break
-		}
+	if pr.Best < 0 {
+		return fmt.Errorf("cannot reduce pool %q capacity from unsatisfied result", pool.Name)
 	}
 
-	if r == nil {
-		return fmt.Errorf("could not find resource %q in pool %q", pca.ResourceName, pool.Name)
+	if len(pool.Resources) != len(pr.ResourceResults) {
+		return fmt.Errorf("pool %q resources and resource result list differ in length", pool.Name)
 	}
 
-	return r.ReduceCapacity(pca.CapacityResults)
+	return pool.Resources[pr.Best].ReduceCapacity(pr.ResourceResults[pr.Best].CapacityResults)
 }
 
 // Resource methods
@@ -398,9 +369,9 @@ func qtoi(q resource.Quantity) *big.Int {
 
 // NodeAllocationResult methods
 
-func (nca *NodeAllocationResult) Success() bool {
-	for _, a := range nca.CapacityClaimResults {
-		if !a.Success() {
+func (nar *NodeAllocationResult) Success() bool {
+	for _, ccr := range nar.CapacityClaimResults {
+		if !ccr.Success() {
 			return false
 		}
 	}
@@ -408,24 +379,70 @@ func (nca *NodeAllocationResult) Success() bool {
 	return true
 }
 
-func (nca *NodeAllocationResult) Score() int {
-	if !nca.Success() {
+func (nar *NodeAllocationResult) Score() int {
+	if !nar.Success() {
 		return 0
 	}
 
 	score := 0
-	for _, a := range nca.CapacityClaimResults {
-		score += a.Score()
+	for _, ccr := range nar.CapacityClaimResults {
+		score += ccr.Score()
 	}
 
-	return score
+	return score / len(nar.CapacityClaimResults)
+}
+
+func (nar *NodeAllocationResult) PrintSummary() {
+	msg := "failed"
+	if nar.Success() {
+		msg = "succeeded"
+	}
+
+	fmt.Printf("node %q (%d): %s\n", nar.NodeName, nar.Score(), msg)
+
+	for _, ccr := range nar.CapacityClaimResults {
+		msg = "failed"
+		if ccr.Success() {
+			msg = "succeeded"
+		}
+		fmt.Printf("- capacity claim %q (%d): %s\n", ccr.ClaimName, ccr.Score(), msg)
+
+		for _, rcr := range ccr.ResourceClaimResults {
+			msg = rcr.FailureReason
+			if rcr.Success() {
+				msg = "succeeded"
+			}
+			fmt.Printf("  - resource claim %q (%d): %s\n", rcr.ClaimName, rcr.Score(), msg)
+
+			for pri, pr := range rcr.PoolResults {
+				msg = pr.FailureReason
+				if pr.Success() {
+					msg = "succeeded"
+				}
+				if pri == rcr.Best {
+					msg = "best"
+				}
+				fmt.Printf("    - pool %q (%d): %s\n", pr.PoolName, pr.Score(), msg)
+				for rri, rr := range pr.ResourceResults {
+					msg = rr.FailureReason
+					if rr.Success() {
+						msg = "success"
+					}
+					if rri == pr.Best {
+						msg = "best"
+					}
+					fmt.Printf("      - resource %q (%d): %s\n", rr.ResourceName, rr.Score, msg)
+				}
+			}
+		}
+	}
 }
 
 // CapacityClaimResult methods
 
-func (cca *CapacityClaimResult) Success() bool {
-	for _, a := range cca.ResourceClaimResults {
-		if !a.Success() {
+func (ccr *CapacityClaimResult) Success() bool {
+	for _, rcr := range ccr.ResourceClaimResults {
+		if !rcr.Success() {
 			return false
 		}
 	}
@@ -433,62 +450,49 @@ func (cca *CapacityClaimResult) Success() bool {
 	return true
 }
 
-func (cca *CapacityClaimResult) Score() int {
-	if !cca.Success() {
+func (ccr *CapacityClaimResult) Score() int {
+	if !ccr.Success() {
 		return 0
 	}
 
 	score := 0
-	for _, a := range cca.ResourceClaimResults {
-		score += a.Score()
+	for _, r := range ccr.ResourceClaimResults {
+		score += r.Score()
 	}
 
-	return score
+	return score / len(ccr.ResourceClaimResults)
 }
 
 // ResourceClaimResult methods
 
-func (rca *ResourceClaimResult) Success() bool {
-	if rca.FailureSummary != "" {
-		return false
-	}
-
-	if len(rca.PoolResults) == 0 {
-		return false
-	}
-
-	for _, a := range rca.PoolResults {
-		if !a.Success() {
-			return false
-		}
-	}
-
-	return true
+func (rcr *ResourceClaimResult) Success() bool {
+	return rcr.Best >= 0
 }
 
-func (rca *ResourceClaimResult) Score() int {
-	if !rca.Success() {
+func (rcr *ResourceClaimResult) Score() int {
+	if !rcr.Success() {
 		return 0
 	}
 
-	score := 0
-	for _, a := range rca.PoolResults {
-		score += a.Score
-	}
-
-	return score
+	return rcr.PoolResults[rcr.Best].Score()
 }
 
-// PoolCapacityAlloction methods
+// PoolResult methods
 
-func (pca *PoolResult) Success() bool {
-	return pca.FailureSummary == "" && len(pca.FailureDetails) == 0 && len(pca.CapacityResults) > 0
+func (pr *PoolResult) Success() bool {
+	return pr.Best >= 0
 }
 
-func (pca *PoolResult) FailureReason() string {
-	if pca.Success() {
-		return ""
+func (pr *PoolResult) Score() int {
+	if !pr.Success() {
+		return 0
 	}
 
-	return fmt.Sprintf("%s; %s", pca.FailureSummary, strings.Join(pca.FailureDetails, ", "))
+	return pr.ResourceResults[pr.Best].Score
+}
+
+// ResourceResult methods
+
+func (rr *ResourceResult) Success() bool {
+	return rr.Score > 0
 }
