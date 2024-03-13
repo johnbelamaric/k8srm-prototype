@@ -16,7 +16,7 @@ func init() {
 }
 
 func usage() {
-	fmt.Fprintf(flag.CommandLine.Output(), "usage: %s pod -nodes <file> -claim <file>\n", os.Args[0])
+	fmt.Fprintf(flag.CommandLine.Output(), "usage: %s -nodes <file> -claim <file> pod\n", os.Args[0])
 	flag.PrintDefaults()
 }
 

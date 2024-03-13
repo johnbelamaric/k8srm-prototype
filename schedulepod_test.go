@@ -3,9 +3,31 @@ package main
 import (
 	"fmt"
 	"github.com/stretchr/testify/require"
+	"os"
 	"sigs.k8s.io/yaml"
+	"strings"
 	"testing"
 )
+
+func dumpTestCase(tn string, claim PodCapacityClaim) {
+	if os.Getenv("DUMP_TEST_CASES") != "y" {
+		return
+	}
+
+	cleanup := func(r rune) rune {
+		if r < 'a' || r > 'z' {
+			return '-'
+		}
+		return r
+	}
+	file := "testdata/pod-" + strings.Map(cleanup, strings.ToLower(tn)) + ".yaml"
+
+	b, _ := yaml.Marshal(claim)
+	err := os.WriteFile(file, b, 0644)
+	if err != nil {
+		fmt.Printf("error saving file %q: %s\n", file, err)
+	}
+}
 
 func TestSchedulePodForCore(t *testing.T) {
 	testCases := map[string]struct {
@@ -141,14 +163,9 @@ func TestSchedulePodForCore(t *testing.T) {
 	for tn, tc := range testCases {
 		capacity := genCapShapeZero(2)
 		t.Run(tn, func(t *testing.T) {
-			fmt.Println("-------------------------------")
-			fmt.Println(tn)
-			fmt.Println("----")
+			dumpTestCase(tn, tc.claim)
 			allocation := SchedulePod(capacity, tc.claim)
 			require.Equal(t, tc.expectSuccess, allocation != nil)
-			fmt.Println("----")
-			b, _ := yaml.Marshal(allocation)
-			fmt.Println(string(b))
 		})
 	}
 }
@@ -199,14 +216,9 @@ func TestSchedulePodForFoozer(t *testing.T) {
 	for tn, tc := range testCases {
 		capacity := genCapShapeOne(2)
 		t.Run(tn, func(t *testing.T) {
-			fmt.Println("-------------------------------")
-			fmt.Println(tn)
-			fmt.Println("----")
+			dumpTestCase(tn, tc.claim)
 			allocation := SchedulePod(capacity, tc.claim)
 			require.Equal(t, tc.expectSuccess, allocation != nil)
-			fmt.Println("----")
-			b, _ := yaml.Marshal(allocation)
-			fmt.Println(string(b))
 		})
 	}
 }
@@ -257,14 +269,9 @@ func TestSchedulePodForBigFoozer(t *testing.T) {
 	for tn, tc := range testCases {
 		capacity := genCapShapeTwo(2, 4)
 		t.Run(tn, func(t *testing.T) {
-			fmt.Println("-------------------------------")
-			fmt.Println(tn)
-			fmt.Println("----")
+			dumpTestCase(tn, tc.claim)
 			allocation := SchedulePod(capacity, tc.claim)
 			require.Equal(t, tc.expectSuccess, allocation != nil)
-			fmt.Println("----")
-			b, _ := yaml.Marshal(allocation)
-			fmt.Println(string(b))
 		})
 	}
 }
