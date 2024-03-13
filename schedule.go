@@ -5,7 +5,6 @@ import (
 	"gopkg.in/inf.v0"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"math/big"
-	"sigs.k8s.io/yaml"
 	"sort"
 	"strings"
 )
@@ -17,37 +16,29 @@ import (
 // but since capacity values are often pointers, you really should start with a fresh
 // NodeResources for testing
 func SchedulePod(available []NodeResources, pcc PodCapacityClaim) *NodeAllocationResult {
-	var best *NodeAllocationResult
-	for _, nr := range available {
-		nca := nr.AllocatePodCapacityClaim(pcc)
+	results, best := EvaluateNodesForPod(available, pcc)
+	if best < 0 {
+		return nil
+	}
 
-		fmt.Printf("%s: %d\n", nca.NodeName, nca.Score())
+	return &results[best]
+}
 
-		if !nca.Success() {
-			var unsatisfied []CapacityClaimResult
-			for _, cca := range nca.CapacityClaimResults {
-				if cca.Success() {
-					continue
-				}
-				unsatisfied = append(unsatisfied, cca)
-			}
+func EvaluateNodesForPod(available []NodeResources, pcc PodCapacityClaim) ([]NodeAllocationResult, int) {
+	best := -1
+	var results []NodeAllocationResult
+	for i, nr := range available {
+		results = append(results, nr.AllocatePodCapacityClaim(pcc))
 
-			b, _ := yaml.Marshal(unsatisfied)
-			fmt.Println(string(b))
-			fmt.Println("---")
-
+		if !results[i].Success() {
 			continue
 		}
-		if best == nil || best.Score() < nca.Score() {
-			best = &nca
+		if best < 0 || results[best].Score() < results[i].Score() {
+			best = i
 		}
 	}
 
-	if best != nil {
-		return best
-	}
-
-	return nil
+	return results, best
 }
 
 // NodeResources methods
