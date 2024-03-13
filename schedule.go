@@ -16,7 +16,7 @@ import (
 // Note that for the prototype, no allocation state is kept across calls to this function,
 // but since capacity values are often pointers, you really should start with a fresh
 // NodeResources for testing
-func SchedulePod(available []NodeResources, pcc *PodCapacityClaim) *NodeCapacityAllocation {
+func SchedulePod(available []NodeResources, pcc PodCapacityClaim) *NodeCapacityAllocation {
 	var best *NodeCapacityAllocation
 	for _, nr := range available {
 		nca := nr.AllocatePodCapacityClaim(pcc)
@@ -55,7 +55,7 @@ func SchedulePod(available []NodeResources, pcc *PodCapacityClaim) *NodeCapacity
 // AllocateForPod evaluates if a node can fit a pod claim, and if so, returns
 // the allocation (including topology assignments) and a score.
 // If not, returns the reason why the allocation is impossible.
-func (nr *NodeResources) AllocatePodCapacityClaim(pcc *PodCapacityClaim) NodeCapacityAllocation {
+func (nr *NodeResources) AllocatePodCapacityClaim(pcc PodCapacityClaim) NodeCapacityAllocation {
 	result := NodeCapacityAllocation{NodeName: nr.Name}
 
 	result.CapacityClaimAllocations = append(result.CapacityClaimAllocations, nr.AllocateCapacityClaim(&pcc.PodClaim))
