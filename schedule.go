@@ -222,7 +222,9 @@ func (c Capacity) capKey() string {
 
 func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityResult, string) {
 	var result []CapacityResult
-	// index the capacities in the resource
+	// index the capacities in the resource. this results in an array per
+	// capacity name, with the individual per-topology capacities as the
+	// entries in the array
 	capacityMap := make(map[string][]Capacity)
 	for _, c := range r.Capacities {
 		capacityMap[c.Name] = append(capacityMap[c.Name], c)
@@ -235,9 +237,11 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityResult, string)
 			return nil, fmt.Sprintf("no capacity %q present in resource %q", cr.Capacity, r.Name)
 		}
 		satisfied := false
-		// TODO(johnbelamaric): implement splitting across topologies (implement GroupInResource)
+		// TODO(johnbelamaric): currently ignores GroupInResource value and assumes 'true'
+		// TODO(johnbelamaric): splitting across topos should affect score
+		unsatReq := cr
 		for i, capInTopo := range availCap {
-			allocReq, err := capInTopo.AllocateRequest(cr)
+			allocReq, remainReq, err := capInTopo.AllocateRequest(unsatReq)
 			if err != nil {
 				return nil, fmt.Sprintf("error evaluating capacity %q in resource %q: %s", cr.Capacity, r.Name, err)
 			}
@@ -247,9 +251,14 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityResult, string)
 					return nil, fmt.Sprintf("err reducing capacity %q in resource %q: %s", cr.Capacity, r.Name, err)
 				}
 				result = append(result, *allocReq)
+			}
+
+			if remainReq == nil {
 				satisfied = true
 				break
 			}
+
+			unsatReq = *remainReq
 		}
 		if !satisfied {
 			return nil, fmt.Sprintf("insufficient capacity %q present in resource %q", cr.Capacity, r.Name)
@@ -261,7 +270,7 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityResult, string)
 
 // Capacity methods
 
-func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, error) {
+func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, *CapacityRequest, error) {
 	if c.Counter != nil && cr.Counter != nil {
 		if cr.Counter.Request <= c.Counter.Capacity {
 			return &CapacityResult{
@@ -270,9 +279,23 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, error) {
 					Counter:  &ResourceCounterRequest{cr.Counter.Request},
 				},
 				Topologies: c.topologyAssignments(),
-			}, nil
+			}, nil, nil
 		}
-		return nil, nil
+		if c.Counter.Capacity == 0 {
+			return nil, &cr, nil
+		}
+		return &CapacityResult{
+				CapacityRequest: CapacityRequest{
+					Capacity: cr.Capacity,
+					Counter:  &ResourceCounterRequest{c.Counter.Capacity},
+				},
+				Topologies: c.topologyAssignments(),
+			},
+			&CapacityRequest{
+				Capacity: cr.Capacity,
+				Counter:  &ResourceCounterRequest{cr.Counter.Request - c.Counter.Capacity},
+			},
+			nil
 	}
 
 	if c.Quantity != nil && cr.Quantity != nil {
@@ -283,26 +306,59 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, error) {
 					Quantity: &ResourceQuantityRequest{cr.Quantity.Request},
 				},
 				Topologies: c.topologyAssignments(),
-			}, nil
+			}, nil, nil
 		}
-		return nil, nil
+		if c.Quantity.Capacity.IsZero() {
+			return nil, &cr, nil
+		}
+		remainder := cr.Quantity.Request
+		remainder.Sub(c.Quantity.Capacity)
+		return &CapacityResult{
+				CapacityRequest: CapacityRequest{
+					Capacity: cr.Capacity,
+					Quantity: &ResourceQuantityRequest{c.Quantity.Capacity},
+				},
+				Topologies: c.topologyAssignments(),
+			},
+			&CapacityRequest{
+				Capacity: cr.Capacity,
+				Quantity: &ResourceQuantityRequest{remainder},
+			},
+			nil
 	}
 
 	if c.Block != nil && cr.Quantity != nil {
-		realRequest := roundToBlock(cr.Quantity.Request, c.Block.Size)
-		if realRequest.Cmp(c.Block.Capacity) <= 0 {
+		realRequest := roundUpToBlock(cr.Quantity.Request, c.Block.Size)
+		realCapacity := roundDownToBlock(c.Block.Capacity, c.Block.Size)
+		if realRequest.Cmp(realCapacity) <= 0 {
 			return &CapacityResult{
 				CapacityRequest: CapacityRequest{
 					Capacity: cr.Capacity,
 					Quantity: &ResourceQuantityRequest{realRequest},
 				},
 				Topologies: c.topologyAssignments(),
-			}, nil
+			}, nil, nil
 		}
-		return nil, nil
+		if c.Block.Capacity.Cmp(c.Block.Size) <= 0 {
+			return nil, &cr, nil
+		}
+		remainder := realRequest
+		remainder.Sub(realCapacity)
+		return &CapacityResult{
+				CapacityRequest: CapacityRequest{
+					Capacity: cr.Capacity,
+					Quantity: &ResourceQuantityRequest{realCapacity},
+				},
+				Topologies: c.topologyAssignments(),
+			},
+			&CapacityRequest{
+				Capacity: cr.Capacity,
+				Quantity: &ResourceQuantityRequest{remainder},
+			},
+			nil
 	}
 
-	return nil, fmt.Errorf("request/capacity type mismatch")
+	return nil, &cr, fmt.Errorf("request/capacity type mismatch")
 }
 
 func (c Capacity) topologyAssignments() []TopologyAssignment {
@@ -344,7 +400,7 @@ func (c Capacity) reduce(cr CapacityRequest) (Capacity, error) {
 	return Capacity{}, fmt.Errorf("request/capacity type mismatch")
 }
 
-func roundToBlock(q, size resource.Quantity) resource.Quantity {
+func roundUpToBlock(q, size resource.Quantity) resource.Quantity {
 	qi := qtoi(q)
 	si := qtoi(size)
 	zero := big.NewInt(0)
@@ -353,6 +409,16 @@ func roundToBlock(q, size resource.Quantity) resource.Quantity {
 	if remainder.Cmp(zero) > 0 {
 		qi.Add(qi, si).Sub(qi, remainder)
 	}
+	// canonicalize and return
+	return resource.MustParse(resource.NewDecimalQuantity(*inf.NewDecBig(qi, inf.Scale(-1*resource.Nano)), q.Format).String())
+}
+
+func roundDownToBlock(q, size resource.Quantity) resource.Quantity {
+	qi := qtoi(q)
+	si := qtoi(size)
+	qi.Div(qi, si)
+	qi.Mul(qi, si)
+
 	// canonicalize and return
 	return resource.MustParse(resource.NewDecimalQuantity(*inf.NewDecBig(qi, inf.Scale(-1*resource.Nano)), q.Format).String())
 }

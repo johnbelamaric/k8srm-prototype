@@ -88,7 +88,7 @@ func TestSchedulePodForCore(t *testing.T) {
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("4", "128Gi")},
+						Claims: []ResourceClaim{genClaimContainer("4", "256Gi")},
 					},
 				},
 			},
