@@ -1,4 +1,4 @@
-- name: shape-one-000
+- name: node-medium-8x64x4-foozer1000-numa-0
   pools:
   - name: primary
     driver: kubelet
@@ -23,32 +23,32 @@
           capacity: "4"
           size: 10m
         topologies:
-        - type: numa
-          name: numa-0
+        - name: numa-0
+          type: numa
           groupInResource: true
       - name: memory
         block:
           capacity: 32Gi
           size: 1Mi
         topologies:
-        - type: numa
-          name: numa-0
+        - name: numa-0
+          type: numa
           groupInResource: true
       - name: cpu
         block:
           capacity: "4"
           size: 10m
         topologies:
-        - type: numa
-          name: numa-1
+        - name: numa-1
+          type: numa
           groupInResource: true
       - name: memory
         block:
           capacity: 32Gi
           size: 1Mi
         topologies:
-        - type: numa
-          name: numa-1
+        - name: numa-1
+          type: numa
           groupInResource: true
   - name: foozer-1000-01
     driver: example.com/foozer

@@ -1,4 +1,4 @@
-- name: shape-zero-000
+- name: node-medium-8x64-numa-0
   pools:
   - name: primary
     driver: kubelet
@@ -20,7 +20,7 @@
           capacity: 1000
       - name: cpu
         block:
-          capacity: "8"
+          capacity: "4"
           size: 10m
         topologies:
         - name: numa-0
@@ -28,7 +28,7 @@
           groupInResource: true
       - name: memory
         block:
-          capacity: 64Gi
+          capacity: 32Gi
           size: 1Mi
         topologies:
         - name: numa-0
@@ -36,7 +36,7 @@
           groupInResource: true
       - name: cpu
         block:
-          capacity: "8"
+          capacity: "4"
           size: 10m
         topologies:
         - name: numa-1
@@ -44,7 +44,7 @@
           groupInResource: true
       - name: memory
         block:
-          capacity: 64Gi
+          capacity: 32Gi
           size: 1Mi
         topologies:
         - name: numa-1
