@@ -25,8 +25,7 @@
         topologies:
         - name: numa-0
           type: numa
-          aggregateInPool: false
-          aggregateInResource: true
+          groupInResource: true
       - name: memory
         block:
           capacity: 64Gi
@@ -34,8 +33,7 @@
         topologies:
         - name: numa-0
           type: numa
-          aggregateInPool: false
-          aggregateInResource: true
+          groupInResource: true
       - name: cpu
         block:
           capacity: "8"
@@ -43,8 +41,7 @@
         topologies:
         - name: numa-1
           type: numa
-          aggregateInPool: false
-          aggregateInResource: true
+          groupInResource: true
       - name: memory
         block:
           capacity: 64Gi
@@ -52,5 +49,4 @@
         topologies:
         - name: numa-1
           type: numa
-          aggregateInPool: false
-          aggregateInResource: true
+          groupInResource: true

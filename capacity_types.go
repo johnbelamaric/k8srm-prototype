@@ -77,13 +77,9 @@ type Topology struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
 
-	// AggregateInResource allows a claim to be satisfied by capacities from
+	// GroupInResource allows a claim to be satisfied by capacities from
 	// different topologies, but in the same resource.
-	AggregateInResource bool `json:"aggregateInResource"`
-
-	// AggregateInPool allows a claim to be satisfied by capacities from different
-	// topologies, but withing the same resource pool
-	AggregateInPool bool `json:"aggregateInPool"`
+	GroupInResource bool `json:"groupInResource"`
 }
 
 type ResourceCounter struct {

@@ -164,7 +164,7 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 		}
 
 		//TODO(johnbelamaric): loop through all instead of using first, add scoring and splitting
-		// across resources if possible (implement AggregateInPool)
+		// across resources if possible (implement GroupInPool)
 		result.Score = 1
 		result.CapacityAllocations = capacities
 		result.ResourceName = r.Name
@@ -273,7 +273,7 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityAllocation, str
 			return nil, fmt.Sprintf("no capacity %q present in resource %q", cr.Capacity, r.Name)
 		}
 		satisfied := false
-		// TODO(johnbelamaric): implement splitting across topologies (implement AggregateInResource)
+		// TODO(johnbelamaric): implement splitting across topologies (implement GroupInResource)
 		for i, capInTopo := range availCap {
 			allocReq, err := capInTopo.AllocateRequest(cr)
 			if err != nil {

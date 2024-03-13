@@ -16,7 +16,7 @@ func init() {
 }
 
 func usage() {
-	fmt.Fprintf(flag.CommandLine.Output(), "usage: %s schedule-pod -nodes <file> -claim <file>\n", os.Args[0])
+	fmt.Fprintf(flag.CommandLine.Output(), "usage: %s pod -nodes <file> -claim <file>\n", os.Args[0])
 	flag.PrintDefaults()
 }
 
@@ -94,7 +94,7 @@ func main() {
 	case "gen-example":
 		genExample()
 		break
-	case "schedule-pod":
+	case "pod":
 		err := schedulePod(nodesFlag, claimFlag)
 		if err != nil {
 			fmt.Fprintf(flag.CommandLine.Output(), "error: %s\n", err)

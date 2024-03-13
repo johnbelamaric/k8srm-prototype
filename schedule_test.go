@@ -300,9 +300,9 @@ func TestResourceReduceCapacity(t *testing.T) {
 						Name: "counter-test",
 						Topologies: []Topology{
 							{
-								Type:                "numa",
-								Name:                "numa-0",
-								AggregateInResource: true,
+								Type:            "numa",
+								Name:            "numa-0",
+								GroupInResource: true,
 							},
 						},
 						Counter: &ResourceCounter{Capacity: 10},
@@ -330,9 +330,9 @@ func TestResourceReduceCapacity(t *testing.T) {
 						Name: "counter-test",
 						Topologies: []Topology{
 							{
-								Type:                "numa",
-								Name:                "numa-0",
-								AggregateInResource: true,
+								Type:            "numa",
+								Name:            "numa-0",
+								GroupInResource: true,
 							},
 						},
 						Counter: &ResourceCounter{Capacity: 6},
@@ -348,9 +348,9 @@ func TestResourceReduceCapacity(t *testing.T) {
 						Name: "counter-test",
 						Topologies: []Topology{
 							{
-								Type:                "numa",
-								Name:                "numa-0",
-								AggregateInResource: true,
+								Type:            "numa",
+								Name:            "numa-0",
+								GroupInResource: true,
 							},
 						},
 						Counter: &ResourceCounter{Capacity: 10},
@@ -359,9 +359,9 @@ func TestResourceReduceCapacity(t *testing.T) {
 						Name: "counter-test",
 						Topologies: []Topology{
 							{
-								Type:                "numa",
-								Name:                "numa-1",
-								AggregateInResource: true,
+								Type:            "numa",
+								Name:            "numa-1",
+								GroupInResource: true,
 							},
 						},
 						Counter: &ResourceCounter{Capacity: 10},
@@ -389,9 +389,9 @@ func TestResourceReduceCapacity(t *testing.T) {
 						Name: "counter-test",
 						Topologies: []Topology{
 							{
-								Type:                "numa",
-								Name:                "numa-0",
-								AggregateInResource: true,
+								Type:            "numa",
+								Name:            "numa-0",
+								GroupInResource: true,
 							},
 						},
 						Counter: &ResourceCounter{Capacity: 10},
@@ -400,9 +400,9 @@ func TestResourceReduceCapacity(t *testing.T) {
 						Name: "counter-test",
 						Topologies: []Topology{
 							{
-								Type:                "numa",
-								Name:                "numa-1",
-								AggregateInResource: true,
+								Type:            "numa",
+								Name:            "numa-1",
+								GroupInResource: true,
 							},
 						},
 						Counter: &ResourceCounter{Capacity: 6},

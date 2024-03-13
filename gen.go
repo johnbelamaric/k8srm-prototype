@@ -17,10 +17,9 @@ func genCapNumaNode(num int, cpu, mem resource.Quantity) []Capacity {
 			Block: &ResourceBlock{resource.MustParse("10m"), cpu},
 			Topologies: []Topology{
 				{
-					Name:                fmt.Sprintf("numa-%d", num),
-					Type:                "numa",
-					AggregateInResource: true,
-					AggregateInPool:     false,
+					Name:            fmt.Sprintf("numa-%d", num),
+					Type:            "numa",
+					GroupInResource: true,
 				},
 			},
 		},
@@ -29,10 +28,9 @@ func genCapNumaNode(num int, cpu, mem resource.Quantity) []Capacity {
 			Block: &ResourceBlock{resource.MustParse("1Mi"), mem},
 			Topologies: []Topology{
 				{
-					Name:                fmt.Sprintf("numa-%d", num),
-					Type:                "numa",
-					AggregateInResource: true,
-					AggregateInPool:     false,
+					Name:            fmt.Sprintf("numa-%d", num),
+					Type:            "numa",
+					GroupInResource: true,
 				},
 			},
 		},
@@ -78,16 +76,14 @@ func genCapFoozerResources(start, num int, model, version, conn, net, mem, foos 
 	for i := start; i < (start + num); i++ {
 		topos := []Topology{
 			{
-				Name:                fmt.Sprintf("numa-%d", i/2),
-				Type:                "numa",
-				AggregateInResource: true,
-				AggregateInPool:     false,
+				Name:            fmt.Sprintf("numa-%d", i/2),
+				Type:            "numa",
+				GroupInResource: true,
 			},
 			{
-				Name:                fmt.Sprintf("pci-%d", i%2),
-				Type:                "pci",
-				AggregateInResource: true,
-				AggregateInPool:     false,
+				Name:            fmt.Sprintf("pci-%d", i%2),
+				Type:            "pci",
+				GroupInResource: true,
 			},
 		}
 		resources = append(resources, Resource{
@@ -112,10 +108,9 @@ func genCapFoozerResources(start, num int, model, version, conn, net, mem, foos 
 					Name:    "example.com/foozer/interfaces",
 					Counter: &ResourceCounter{vfs},
 					Topologies: append(topos, Topology{
-						Name:                net,
-						Type:                "foo-net",
-						AggregateInResource: true,
-						AggregateInPool:     false,
+						Name:            net,
+						Type:            "foo-net",
+						GroupInResource: true,
 					}),
 				},
 			},
