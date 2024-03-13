@@ -74,8 +74,8 @@ func (nr *NodeResources) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimA
 		rca := ResourceClaimAllocation{ClaimName: cc.Name}
 
 		// find the best pool to satisfy each resource claim
-		// TODO(johnbelamaric): allows splitting a single resource claim across multiple
-		// pools (implement AggregateInPool)
+		// TODO(johnbelamaric): allow splitting a single resource claim across multiple
+		// pools (subject to the node? or some topology?)
 		var poolResults []*PoolCapacityAllocation
 		var best *PoolCapacityAllocation
 		var idx int
@@ -164,7 +164,7 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolCapacityAllocat
 		}
 
 		//TODO(johnbelamaric): loop through all instead of using first, add scoring and splitting
-		// across resources if possible
+		// across resources if possible (implement AggregateInPool)
 		result.Score = 1
 		result.CapacityAllocations = capacities
 		result.ResourceName = r.Name
@@ -213,7 +213,7 @@ func (r *Resource) ReduceCapacity(allocations []CapacityAllocation) error {
 	// index our capacities by their unique topologies
 	capMap := make(map[string]int)
 	for i, capacity := range r.Capacities {
-		capMap[r.capKey(capacity)] = i
+		capMap[capacity.capKey()] = i
 	}
 
 	for _, ca := range allocations {
@@ -242,9 +242,9 @@ func (ca *CapacityAllocation) capKey() string {
 	return strings.Join(keyList, ";")
 }
 
-func (r *Resource) capKey(capacity Capacity) string {
+func (c Capacity) capKey() string {
 	topos := make(map[string]string)
-	for _, t := range capacity.Topologies {
+	for _, t := range c.Topologies {
 		topos[t.Type] = t.Name
 	}
 
@@ -253,7 +253,7 @@ func (r *Resource) capKey(capacity Capacity) string {
 		topoList = append(topoList, fmt.Sprintf("%s=%s", k, v))
 	}
 	sort.Strings(topoList)
-	keyList = append(keyList, capacity.Name)
+	keyList = append(keyList, c.Name)
 	keyList = append(keyList, topoList...)
 	return strings.Join(keyList, ";")
 }
@@ -261,9 +261,9 @@ func (r *Resource) capKey(capacity Capacity) string {
 func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityAllocation, string) {
 	var result []CapacityAllocation
 	// index the capacities in the resource
-	capacityMap := make(map[string]Capacity)
+	capacityMap := make(map[string][]Capacity)
 	for _, c := range r.Capacities {
-		capacityMap[c.Name] = c
+		capacityMap[c.Name] = append(capacityMap[c.Name], c)
 	}
 
 	// evaluate each claim capacity and see if we can satisfy it
@@ -272,14 +272,26 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityAllocation, str
 		if !ok {
 			return nil, fmt.Sprintf("no capacity %q present in resource %q", cr.Capacity, r.Name)
 		}
-		allocReq, err := availCap.AllocateRequest(cr)
-		if err != nil {
-			return nil, fmt.Sprintf("error evaluating capacity %q in resource %q: %s", cr.Capacity, r.Name, err)
+		satisfied := false
+		// TODO(johnbelamaric): implement splitting across topologies (implement AggregateInResource)
+		for i, capInTopo := range availCap {
+			allocReq, err := capInTopo.AllocateRequest(cr)
+			if err != nil {
+				return nil, fmt.Sprintf("error evaluating capacity %q in resource %q: %s", cr.Capacity, r.Name, err)
+			}
+			if allocReq != nil {
+				capacityMap[cr.Capacity][i], err = availCap[i].reduce(allocReq.CapacityRequest)
+				if err != nil {
+					return nil, fmt.Sprintf("err reducing capacity %q in resource %q: %s", cr.Capacity, r.Name, err)
+				}
+				result = append(result, *allocReq)
+				satisfied = true
+				break
+			}
 		}
-		if allocReq == nil {
+		if !satisfied {
 			return nil, fmt.Sprintf("insufficient capacity %q present in resource %q", cr.Capacity, r.Name)
 		}
-		result = append(result, *allocReq)
 	}
 
 	return result, ""
