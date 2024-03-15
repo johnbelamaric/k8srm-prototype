@@ -5,7 +5,7 @@ podClaim:
       counter:
         request: 1
     name: pod
-  name: pod-small-1x0
+  name: pod-1x100mx100Mi
 containerClaims:
 - claims:
   - capacities:
