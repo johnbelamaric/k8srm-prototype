@@ -1,4 +1,4 @@
-package main
+package schedule
 
 import (
 	"github.com/stretchr/testify/require"

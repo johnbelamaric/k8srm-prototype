@@ -1,4 +1,4 @@
-package main
+package schedule
 
 import (
 	"fmt"
@@ -121,7 +121,7 @@ func genCapFoozerResources(start, num int, model, version, conn, net, mem, foos 
 
 // shape zero are compute nodes with no specialized resources
 // They have 16 CPUs and 128Gi divided equally in two NUMA nodes
-func genCapShapeZero(num int) []NodeResources {
+func GenCapShapeZero(num int) []NodeResources {
 	var nrs []NodeResources
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-zero-%03d", i)
@@ -140,7 +140,7 @@ func genCapShapeZero(num int) []NodeResources {
 // the node has foozer kernel module/driver v7.8.1-gen6
 // foozer 1000s only support node-local topology for their foo nets,
 // so each node gets a separate foonet topology instance
-func genCapShapeOne(num int) []NodeResources {
+func GenCapShapeOne(num int) []NodeResources {
 	pool := ResourcePool{
 		Driver: "example.com/foozer",
 		Name:   "foozer-1000-01",
@@ -170,7 +170,7 @@ func genCapShapeOne(num int) []NodeResources {
 // the node requires a slightly different foozer kernel module/driver than shape one
 // foozer 4000s support inter-node foonets, so there multiple nodes may be connected
 // to a foonet topology. foozer-4000s have 40GB connections not 10GB
-func genCapShapeTwo(num, nets int) []NodeResources {
+func GenCapShapeTwo(num, nets int) []NodeResources {
 	pool := ResourcePool{
 		Driver: "example.com/foozer",
 		Name:   "foozer-4000-01",
@@ -195,7 +195,7 @@ func genCapShapeTwo(num, nets int) []NodeResources {
 }
 
 // shape three consists of a mix 4 foozer-1000s and 4 foozer-4000s
-func genCapShapeThree(num, nets int) []NodeResources {
+func GenCapShapeThree(num, nets int) []NodeResources {
 	pool1 := ResourcePool{
 		Driver: "example.com/foozer",
 		Name:   "foozer-1000-01",

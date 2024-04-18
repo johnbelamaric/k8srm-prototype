@@ -1,4 +1,4 @@
-package main
+package schedule
 
 import (
 	"fmt"
@@ -161,7 +161,7 @@ func TestSchedulePodForCore(t *testing.T) {
 	}
 
 	for tn, tc := range testCases {
-		capacity := genCapShapeZero(2)
+		capacity := GenCapShapeZero(2)
 		t.Run(tn, func(t *testing.T) {
 			dumpTestCase(tn, tc.claim)
 			allocation := SchedulePod(capacity, tc.claim)
@@ -214,7 +214,7 @@ func TestSchedulePodForFoozer(t *testing.T) {
 	}
 
 	for tn, tc := range testCases {
-		capacity := genCapShapeOne(2)
+		capacity := GenCapShapeOne(2)
 		t.Run(tn, func(t *testing.T) {
 			dumpTestCase(tn, tc.claim)
 			allocation := SchedulePod(capacity, tc.claim)
@@ -267,7 +267,7 @@ func TestSchedulePodForBigFoozer(t *testing.T) {
 	}
 
 	for tn, tc := range testCases {
-		capacity := genCapShapeTwo(2, 4)
+		capacity := GenCapShapeTwo(2, 4)
 		t.Run(tn, func(t *testing.T) {
 			dumpTestCase(tn, tc.claim)
 			allocation := SchedulePod(capacity, tc.claim)

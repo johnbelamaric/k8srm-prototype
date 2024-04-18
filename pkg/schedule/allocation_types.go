@@ -1,4 +1,4 @@
-package main
+package schedule
 
 // This prototype demonstrates allocating capacity from nodes,
 // adhering to the claim constraints and requests.

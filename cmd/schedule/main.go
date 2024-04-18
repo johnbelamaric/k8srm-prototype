@@ -4,6 +4,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"github.com/johnbelamaric/k8srm-prototype/pkg/schedule"
+
 	"sigs.k8s.io/yaml"
 )
 
@@ -24,17 +27,17 @@ func usage() {
 }
 
 func genCapacityExample(shape string) {
-	var nrs []NodeResources
+	var nrs []schedule.NodeResources
 
 	switch shape {
 	case "0":
-		nrs = genCapShapeZero(1)
+		nrs = schedule.GenCapShapeZero(1)
 	case "1":
-		nrs = genCapShapeOne(1)
+		nrs = schedule.GenCapShapeOne(1)
 	case "2":
-		nrs = genCapShapeTwo(1, 2)
+		nrs = schedule.GenCapShapeTwo(1, 2)
 	case "3":
-		nrs = genCapShapeThree(1, 2)
+		nrs = schedule.GenCapShapeThree(1, 2)
 	default:
 		fmt.Printf("unknown shape %q\n", shape)
 	}
@@ -56,19 +59,19 @@ func unmarshalFile(file string, obj interface{}) error {
 
 func schedulePod(nodesFile, claimFile string) error {
 
-	var nrs []NodeResources
+	var nrs []schedule.NodeResources
 	err := unmarshalFile(nodesFile, &nrs)
 	if err != nil {
 		return err
 	}
 
-	var claim PodCapacityClaim
+	var claim schedule.PodCapacityClaim
 	err = unmarshalFile(claimFile, &claim)
 	if err != nil {
 		return err
 	}
 
-	results, best := EvaluateNodesForPod(nrs, claim)
+	results, best := schedule.EvaluateNodesForPod(nrs, claim)
 	if best < 0 {
 		fmt.Println("failed to satisfy the claim")
 		if flagVerbose {
