@@ -14,8 +14,8 @@ import (
 // SchedulePod finds the best available node that can accomodate the pod claim
 // Note that for the prototype, no allocation state is kept across calls to this function,
 // but since capacity values are often pointers, you really should start with a fresh
-// NodeResources for testing
-func SchedulePod(available []NodeResources, pcc PodCapacityClaim) *NodeAllocationResult {
+// NodeDevices for testing
+func SchedulePod(available []NodeDevices, pcc PodCapacityClaim) *NodeAllocationResult {
 	results, best := EvaluateNodesForPod(available, pcc)
 	if best < 0 {
 		return nil
@@ -24,7 +24,7 @@ func SchedulePod(available []NodeResources, pcc PodCapacityClaim) *NodeAllocatio
 	return &results[best]
 }
 
-func EvaluateNodesForPod(available []NodeResources, pcc PodCapacityClaim) ([]NodeAllocationResult, int) {
+func EvaluateNodesForPod(available []NodeDevices, pcc PodCapacityClaim) ([]NodeAllocationResult, int) {
 	best := -1
 	var results []NodeAllocationResult
 	for i, nr := range available {
@@ -41,10 +41,10 @@ func EvaluateNodesForPod(available []NodeResources, pcc PodCapacityClaim) ([]Nod
 	return results, best
 }
 
-// NodeResources methods
+// NodeDevices methods
 
 // AllocatePodCapacityClaim evaluates the capacity claims for a pod.
-func (nr *NodeResources) AllocatePodCapacityClaim(pcc PodCapacityClaim) NodeAllocationResult {
+func (nr *NodeDevices) AllocatePodCapacityClaim(pcc PodCapacityClaim) NodeAllocationResult {
 	result := NodeAllocationResult{NodeName: nr.Name}
 
 	result.CapacityClaimResults = append(result.CapacityClaimResults, nr.AllocateCapacityClaim(&pcc.PodClaim))
@@ -56,11 +56,11 @@ func (nr *NodeResources) AllocatePodCapacityClaim(pcc PodCapacityClaim) NodeAllo
 	return result
 }
 
-func (nr *NodeResources) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimResult {
+func (nr *NodeDevices) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimResult {
 	ccResult := CapacityClaimResult{ClaimName: cc.Name}
 
 	for _, rc := range cc.Claims {
-		rcResult := ResourceClaimResult{ClaimName: rc.Name}
+		rcResult := DeviceClaimResult{ClaimName: rc.Name}
 
 		best := -1
 		for i, pool := range nr.Pools {
@@ -84,16 +84,16 @@ func (nr *NodeResources) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimR
 			}
 		}
 
-		ccResult.ResourceClaimResults = append(ccResult.ResourceClaimResults, rcResult)
+		ccResult.DeviceClaimResults = append(ccResult.DeviceClaimResults, rcResult)
 	}
 	return ccResult
 }
 
-// ResourcePool methods
+// DevicePool methods
 
-// AllocateCapacity will evaluate a resource claim against the pool, and
-// return the options for making those allocations against the pools resources.
-func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolResult {
+// AllocateCapacity will evaluate a device claim against the pool, and
+// return the options for making those allocations against the pools devices.
+func (pool *DevicePool) AllocateCapacity(rc DeviceClaim) PoolResult {
 	result := PoolResult{PoolName: pool.Name, Best: -1}
 
 	if rc.Driver != "" && rc.Driver != pool.Driver {
@@ -102,18 +102,18 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolResult {
 	}
 
 	best := -1
-	// filter out resources that do not meet the constraints
-	for i, r := range pool.Resources {
-		rResult := ResourceResult{ResourceName: r.Name}
+	// filter out devices that do not meet the constraints
+	for i, r := range pool.Devices {
+		rResult := DeviceResult{DeviceName: r.Name}
 		pass, err := r.MeetsConstraints(rc.Constraints, pool.Attributes)
 		if err != nil {
 			rResult.FailureReason = fmt.Sprintf("error evaluating against constraints: %s", err)
-			result.ResourceResults = append(result.ResourceResults, rResult)
+			result.DeviceResults = append(result.DeviceResults, rResult)
 			continue
 		}
 		if !pass {
 			rResult.FailureReason = "does not meet constraints"
-			result.ResourceResults = append(result.ResourceResults, rResult)
+			result.DeviceResults = append(result.DeviceResults, rResult)
 			continue
 		}
 
@@ -124,16 +124,16 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolResult {
 
 		if reason != "" {
 			rResult.FailureReason = reason
-			result.ResourceResults = append(result.ResourceResults, rResult)
+			result.DeviceResults = append(result.DeviceResults, rResult)
 			continue
 		}
 
 		//TODO(johnbelamaric): add scoring
 		rResult.Score = 100
 		rResult.CapacityResults = capacities
-		result.ResourceResults = append(result.ResourceResults, rResult)
+		result.DeviceResults = append(result.DeviceResults, rResult)
 
-		if best < 0 || result.ResourceResults[best].Score < rResult.Score {
+		if best < 0 || result.DeviceResults[best].Score < rResult.Score {
 			best = i
 		}
 	}
@@ -141,13 +141,13 @@ func (pool *ResourcePool) AllocateCapacity(rc ResourceClaim) PoolResult {
 	result.Best = best
 
 	if best < 0 {
-		result.FailureReason = "no resources in pool with sufficient capacity"
+		result.FailureReason = "no devices in pool with sufficient capacity"
 	}
 
 	return result
 }
 
-func (pool *ResourcePool) ReduceCapacity(pr PoolResult) error {
+func (pool *DevicePool) ReduceCapacity(pr PoolResult) error {
 	if pool.Name != pr.PoolName {
 		return fmt.Errorf("cannot reduce pool %q capacity using allocation from pool %q", pool.Name, pr.PoolName)
 	}
@@ -156,20 +156,20 @@ func (pool *ResourcePool) ReduceCapacity(pr PoolResult) error {
 		return fmt.Errorf("cannot reduce pool %q capacity from unsatisfied result", pool.Name)
 	}
 
-	if len(pool.Resources) != len(pr.ResourceResults) {
-		return fmt.Errorf("pool %q resources and resource result list differ in length", pool.Name)
+	if len(pool.Devices) != len(pr.DeviceResults) {
+		return fmt.Errorf("pool %q devices and device result list differ in length", pool.Name)
 	}
 
-	return pool.Resources[pr.Best].ReduceCapacity(pr.ResourceResults[pr.Best].CapacityResults)
+	return pool.Devices[pr.Best].ReduceCapacity(pr.DeviceResults[pr.Best].CapacityResults)
 }
 
-// Resource methods
+// Device methods
 
-// ReduceCapacity deducts the allocation from the resource so that subsequent
+// ReduceCapacity deducts the allocation from the device so that subsequent
 // requests take already allocated capacities into account. This is not how we
 // would do it in the real model, because we want drivers to publish capacity without
 // tracking allocations. But it's convenient in the prototype.
-func (r *Resource) ReduceCapacity(allocations []CapacityResult) error {
+func (r *Device) ReduceCapacity(allocations []CapacityResult) error {
 	// Capacity allocations should contain enough information to do this
 
 	// index our capacities by their unique topologies
@@ -181,7 +181,7 @@ func (r *Resource) ReduceCapacity(allocations []CapacityResult) error {
 	for _, ca := range allocations {
 		idx, ok := capMap[ca.capKey()]
 		if !ok {
-			return fmt.Errorf("allocated capacity %q not found in resource capacities", ca.capKey())
+			return fmt.Errorf("allocated capacity %q not found in device capacities", ca.capKey())
 		}
 		var err error
 		r.Capacities[idx], err = r.Capacities[idx].reduce(ca.CapacityRequest)
@@ -220,9 +220,9 @@ func (c Capacity) capKey() string {
 	return strings.Join(keyList, ";")
 }
 
-func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityResult, string) {
+func (r *Device) AllocateCapacity(rc DeviceClaim) ([]CapacityResult, string) {
 	var result []CapacityResult
-	// index the capacities in the resource. this results in an array per
+	// index the capacities in the device. this results in an array per
 	// capacity name, with the individual per-topology capacities as the
 	// entries in the array
 	capacityMap := make(map[string][]Capacity)
@@ -234,21 +234,21 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityResult, string)
 	for _, cr := range rc.Capacities {
 		availCap, ok := capacityMap[cr.Capacity]
 		if !ok {
-			return nil, fmt.Sprintf("no capacity %q present in resource %q", cr.Capacity, r.Name)
+			return nil, fmt.Sprintf("no capacity %q present in device %q", cr.Capacity, r.Name)
 		}
 		satisfied := false
-		// TODO(johnbelamaric): currently ignores GroupInResource value and assumes 'true'
+		// TODO(johnbelamaric): currently ignores GroupInDevice value and assumes 'true'
 		// TODO(johnbelamaric): splitting across topos should affect score
 		unsatReq := cr
 		for i, capInTopo := range availCap {
 			allocReq, remainReq, err := capInTopo.AllocateRequest(unsatReq)
 			if err != nil {
-				return nil, fmt.Sprintf("error evaluating capacity %q in resource %q: %s", cr.Capacity, r.Name, err)
+				return nil, fmt.Sprintf("error evaluating capacity %q in device %q: %s", cr.Capacity, r.Name, err)
 			}
 			if allocReq != nil {
 				capacityMap[cr.Capacity][i], err = availCap[i].reduce(allocReq.CapacityRequest)
 				if err != nil {
-					return nil, fmt.Sprintf("err reducing capacity %q in resource %q: %s", cr.Capacity, r.Name, err)
+					return nil, fmt.Sprintf("err reducing capacity %q in device %q: %s", cr.Capacity, r.Name, err)
 				}
 				result = append(result, *allocReq)
 			}
@@ -261,7 +261,7 @@ func (r *Resource) AllocateCapacity(rc ResourceClaim) ([]CapacityResult, string)
 			unsatReq = *remainReq
 		}
 		if !satisfied {
-			return nil, fmt.Sprintf("insufficient capacity %q present in resource %q", cr.Capacity, r.Name)
+			return nil, fmt.Sprintf("insufficient capacity %q present in device %q", cr.Capacity, r.Name)
 		}
 	}
 
@@ -552,12 +552,12 @@ func (nar *NodeAllocationResult) PrintSummary() {
 		}
 		fmt.Printf("- capacity claim %q (%d): %s\n", ccr.ClaimName, ccr.Score(), msg)
 
-		for _, rcr := range ccr.ResourceClaimResults {
+		for _, rcr := range ccr.DeviceClaimResults {
 			msg = rcr.FailureReason
 			if rcr.Success() {
 				msg = "succeeded"
 			}
-			fmt.Printf("  - resource claim %q (%d): %s\n", rcr.ClaimName, rcr.Score(), msg)
+			fmt.Printf("  - device claim %q (%d): %s\n", rcr.ClaimName, rcr.Score(), msg)
 
 			for pri, pr := range rcr.PoolResults {
 				msg = pr.FailureReason
@@ -568,7 +568,7 @@ func (nar *NodeAllocationResult) PrintSummary() {
 					msg = "best"
 				}
 				fmt.Printf("    - pool %q (%d): %s\n", pr.PoolName, pr.Score(), msg)
-				for rri, rr := range pr.ResourceResults {
+				for rri, rr := range pr.DeviceResults {
 					msg = rr.FailureReason
 					if rr.Success() {
 						msg = "success"
@@ -576,7 +576,7 @@ func (nar *NodeAllocationResult) PrintSummary() {
 					if rri == pr.Best {
 						msg = "best"
 					}
-					fmt.Printf("      - resource %q (%d): %s\n", rr.ResourceName, rr.Score, msg)
+					fmt.Printf("      - device %q (%d): %s\n", rr.DeviceName, rr.Score, msg)
 				}
 			}
 		}
@@ -586,7 +586,7 @@ func (nar *NodeAllocationResult) PrintSummary() {
 // CapacityClaimResult methods
 
 func (ccr *CapacityClaimResult) Success() bool {
-	for _, rcr := range ccr.ResourceClaimResults {
+	for _, rcr := range ccr.DeviceClaimResults {
 		if !rcr.Success() {
 			return false
 		}
@@ -601,20 +601,20 @@ func (ccr *CapacityClaimResult) Score() int {
 	}
 
 	score := 0
-	for _, r := range ccr.ResourceClaimResults {
+	for _, r := range ccr.DeviceClaimResults {
 		score += r.Score()
 	}
 
-	return score / len(ccr.ResourceClaimResults)
+	return score / len(ccr.DeviceClaimResults)
 }
 
-// ResourceClaimResult methods
+// DeviceClaimResult methods
 
-func (rcr *ResourceClaimResult) Success() bool {
+func (rcr *DeviceClaimResult) Success() bool {
 	return rcr.Best >= 0
 }
 
-func (rcr *ResourceClaimResult) Score() int {
+func (rcr *DeviceClaimResult) Score() int {
 	if !rcr.Success() {
 		return 0
 	}
@@ -633,11 +633,11 @@ func (pr *PoolResult) Score() int {
 		return 0
 	}
 
-	return pr.ResourceResults[pr.Best].Score
+	return pr.DeviceResults[pr.Best].Score
 }
 
-// ResourceResult methods
+// DeviceResult methods
 
-func (rr *ResourceResult) Success() bool {
+func (rr *DeviceResult) Success() bool {
 	return rr.Score > 0
 }

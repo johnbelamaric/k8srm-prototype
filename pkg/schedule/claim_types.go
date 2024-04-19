@@ -4,30 +4,30 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// This prototype models requests for capacity as ResourceClaims, which
+// This prototype models requests for capacity as DeviceClaims, which
 // are structured based on the workload structure. For example, we can
-// request capacity required to run a pod. This includes resource claims
+// request capacity required to run a pod. This includes device claims
 // for the pod itself (for example, we have a counter for number of pods
-// allowed on a node), as well as resource claims for each container in
+// allowed on a node), as well as device claims for each container in
 // the pod. Claims may include CEL-based constraints, as well as topological
 // constraints. Those topological constraints may apply to the whole pod
 // (equivalent to topology manager scope=pod), or to individual containers
 // in the pod (equivalent to topology manager scope=container).
 
 type PodCapacityClaim struct {
-	// PodClaim contains the resource claims needed for the pod
+	// PodClaim contains the device claims needed for the pod
 	// level, such as the pod capacity needed to run pods,
 	// or devices that may be attached to a container later
 	// +required
 	PodClaim CapacityClaim `json:"podClaim"`
 
-	// ContainerClaims contains the resource claims needed on a
+	// ContainerClaims contains the device claims needed on a
 	// per-container level, such as CPU and memory
 	// +required
 	ContainerClaims []CapacityClaim `json:"containerClaims"`
 
 	// Topologies specifies the topological alignment and preferences
-	// across all containers and resources in the pod
+	// across all containers and devices in the pod
 	// +optional
 	Topologies []TopologyConstraint `json:"topologies,omitempty"`
 }
@@ -38,42 +38,42 @@ type CapacityClaim struct {
 	// +required
 	Name string `json:"name"`
 
-	// Claims contains the set of resource claims that are part of
+	// Claims contains the set of device claims that are part of
 	// this capacity claim
 	// +required
-	Claims []ResourceClaim `json:"claims"`
+	Claims []DeviceClaim `json:"claims"`
 
 	// Topologies specifies the topological alignment and preferences
-	// across all resources in this capacity claim
+	// across all devices in this capacity claim
 	// +optional
 	Topologies []TopologyConstraint `json:"topologies,omitempty"`
 }
 
-type ResourceClaim struct {
-	// Name is used to identify the resource claim to help in troubleshooting
+type DeviceClaim struct {
+	// Name is used to identify the device claim to help in troubleshooting
 	// unschedulable claims.
 	// +required
 	Name string `json:"name"`
 
-	// Driver will limit the scope of resources considered
+	// Driver will limit the scope of devices considered
 	// to only those published by the specified driver
 	// +optional
 	Driver string `json:"driver,omitempty"`
 
 	// Constraints is a CEL expression that operates on
-	// node and resource attributes, and must evaluate to true
-	// for a resource to be considered
+	// node and device attributes, and must evaluate to true
+	// for a device to be considered
 	// +optional
 	Constraints string `json:"constraints,omitempty"`
 
 	// Topologies specifies topological alignment constraints and
 	// preferences for the allocated capacities. These constraints
-	// apply across the capacities within the resource.
+	// apply across the capacities within the device.
 	// +optional
 	Topologies []TopologyConstraint `json:"topologies,omitempty"`
 
 	// Capacities specifies the individual allocations needed
-	// from the capacities provided by the resource
+	// from the capacities provided by the device
 	// +required
 	Capacities []CapacityRequest `json:"capacities"`
 }

@@ -4,26 +4,26 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// This prototype models nodes as a collection of resource
-// pools, each populated by resources, which in turn hold
+// This prototype models nodes as a collection of device
+// pools, each populated by devices, which in turn hold
 // capacities.
-type NodeResources struct {
+type NodeDevices struct {
 	Name string `json:"name"`
 
-	Pools []ResourcePool `json:"pools"`
+	Pools []DevicePool `json:"pools"`
 }
 
-type ResourcePool struct {
+type DevicePool struct {
 	Name   string `json:"name"`
 	Driver string `json:"driver"`
 
 	// attributes for constraints at the pool level
 	Attributes []Attribute `json:"attributes,omitempty"`
 
-	Resources []Resource `json:"resources,omitempty"`
+	Devices []Device `json:"devices,omitempty"`
 }
 
-type Resource struct {
+type Device struct {
 	Name string `json:"name"`
 
 	// attributes for constraints
@@ -85,9 +85,9 @@ type Topology struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
 
-	// GroupInResource allows a claim to be satisfied by capacities from
-	// different topologies, but in the same resource.
-	GroupInResource bool `json:"groupInResource"`
+	// GroupInDevice allows a claim to be satisfied by capacities from
+	// different topologies, but in the same device.
+	GroupInDevice bool `json:"groupInDevice"`
 }
 
 type ResourceCounter struct {

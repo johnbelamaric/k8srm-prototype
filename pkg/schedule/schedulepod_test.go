@@ -38,12 +38,12 @@ func TestSchedulePodForCore(t *testing.T) {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name:   "my-pod",
-					Claims: []ResourceClaim{genClaimPod()},
+					Claims: []DeviceClaim{genClaimPod()},
 				},
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("", "")},
+						Claims: []DeviceClaim{genClaimContainer("", "")},
 					},
 				},
 			},
@@ -53,12 +53,12 @@ func TestSchedulePodForCore(t *testing.T) {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name:   "my-pod",
-					Claims: []ResourceClaim{genClaimPod()},
+					Claims: []DeviceClaim{genClaimPod()},
 				},
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("7127m", "8Gi")},
+						Claims: []DeviceClaim{genClaimContainer("7127m", "8Gi")},
 					},
 				},
 			},
@@ -68,12 +68,12 @@ func TestSchedulePodForCore(t *testing.T) {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name:   "my-pod",
-					Claims: []ResourceClaim{genClaimPod()},
+					Claims: []DeviceClaim{genClaimPod()},
 				},
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("64", "8Gi")},
+						Claims: []DeviceClaim{genClaimContainer("64", "8Gi")},
 					},
 				},
 			},
@@ -83,12 +83,12 @@ func TestSchedulePodForCore(t *testing.T) {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name:   "my-pod",
-					Claims: []ResourceClaim{genClaimPod()},
+					Claims: []DeviceClaim{genClaimPod()},
 				},
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("4", "256Gi")},
+						Claims: []DeviceClaim{genClaimContainer("4", "256Gi")},
 					},
 				},
 			},
@@ -98,20 +98,20 @@ func TestSchedulePodForCore(t *testing.T) {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name:   "my-pod",
-					Claims: []ResourceClaim{genClaimPod()},
+					Claims: []DeviceClaim{genClaimPod()},
 				},
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container-1",
-						Claims: []ResourceClaim{genClaimContainer("7127m", "8Gi")},
+						Claims: []DeviceClaim{genClaimContainer("7127m", "8Gi")},
 					},
 					{
 						Name:   "my-container-2",
-						Claims: []ResourceClaim{genClaimContainer("200m", "8Gi")},
+						Claims: []DeviceClaim{genClaimContainer("200m", "8Gi")},
 					},
 					{
 						Name:   "my-container-3",
-						Claims: []ResourceClaim{genClaimContainer("200m", "8Gi")},
+						Claims: []DeviceClaim{genClaimContainer("200m", "8Gi")},
 					},
 				},
 			},
@@ -121,30 +121,30 @@ func TestSchedulePodForCore(t *testing.T) {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name:   "my-pod",
-					Claims: []ResourceClaim{genClaimPod()},
+					Claims: []DeviceClaim{genClaimPod()},
 				},
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container-1",
-						Claims: []ResourceClaim{genClaimContainer("7127m", "8Gi")},
+						Claims: []DeviceClaim{genClaimContainer("7127m", "8Gi")},
 					},
 					{
 						Name:   "my-container-2",
-						Claims: []ResourceClaim{genClaimContainer("8", "8Gi")},
+						Claims: []DeviceClaim{genClaimContainer("8", "8Gi")},
 					},
 					{
 						Name:   "my-container-3",
-						Claims: []ResourceClaim{genClaimContainer("4", "8Gi")},
+						Claims: []DeviceClaim{genClaimContainer("4", "8Gi")},
 					},
 				},
 			},
 			expectSuccess: false,
 		},
-		"no resources for driver": {
+		"no devices for driver": {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name: "my-foozer-pod",
-					Claims: []ResourceClaim{
+					Claims: []DeviceClaim{
 						genClaimPod(),
 						genClaimFoozer("foozer", "1m", "2Gi", 1),
 					},
@@ -152,7 +152,7 @@ func TestSchedulePodForCore(t *testing.T) {
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("7127m", "8Gi")},
+						Claims: []DeviceClaim{genClaimContainer("7127m", "8Gi")},
 					},
 				},
 			},
@@ -179,7 +179,7 @@ func TestSchedulePodForFoozer(t *testing.T) {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name: "my-foozer-pod",
-					Claims: []ResourceClaim{
+					Claims: []DeviceClaim{
 						genClaimPod(),
 						genClaimFoozer("foozer", "1", "2Gi", 0),
 					},
@@ -187,7 +187,7 @@ func TestSchedulePodForFoozer(t *testing.T) {
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("1", "4Gi")},
+						Claims: []DeviceClaim{genClaimContainer("1", "4Gi")},
 					},
 				},
 			},
@@ -197,7 +197,7 @@ func TestSchedulePodForFoozer(t *testing.T) {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name: "my-foozer-pod",
-					Claims: []ResourceClaim{
+					Claims: []DeviceClaim{
 						genClaimPod(),
 						genClaimFoozer("foozer", "16", "32Gi", 0),
 					},
@@ -205,7 +205,7 @@ func TestSchedulePodForFoozer(t *testing.T) {
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("1", "4Gi")},
+						Claims: []DeviceClaim{genClaimContainer("1", "4Gi")},
 					},
 				},
 			},
@@ -232,7 +232,7 @@ func TestSchedulePodForBigFoozer(t *testing.T) {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name: "my-foozer-pod",
-					Claims: []ResourceClaim{
+					Claims: []DeviceClaim{
 						genClaimPod(),
 						genClaimFoozer("foozer", "1", "2Gi", 0),
 					},
@@ -240,7 +240,7 @@ func TestSchedulePodForBigFoozer(t *testing.T) {
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("1", "4Gi")},
+						Claims: []DeviceClaim{genClaimContainer("1", "4Gi")},
 					},
 				},
 			},
@@ -250,7 +250,7 @@ func TestSchedulePodForBigFoozer(t *testing.T) {
 			claim: PodCapacityClaim{
 				PodClaim: CapacityClaim{
 					Name: "my-foozer-pod",
-					Claims: []ResourceClaim{
+					Claims: []DeviceClaim{
 						genClaimPod(),
 						genClaimFoozer("foozer", "16", "32Gi", 0),
 					},
@@ -258,7 +258,7 @@ func TestSchedulePodForBigFoozer(t *testing.T) {
 				ContainerClaims: []CapacityClaim{
 					{
 						Name:   "my-container",
-						Claims: []ResourceClaim{genClaimContainer("1", "4Gi")},
+						Claims: []DeviceClaim{genClaimContainer("1", "4Gi")},
 					},
 				},
 			},

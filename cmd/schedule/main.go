@@ -14,7 +14,7 @@ var flagNodes, flagClaim string
 var flagVerbose bool
 
 func init() {
-	flag.StringVar(&flagNodes, "nodes", "", "file with []NodeResources yaml")
+	flag.StringVar(&flagNodes, "nodes", "", "file with []NodeDevices yaml")
 	flag.StringVar(&flagClaim, "claim", "", "file with PodCapacityClaim yaml")
 	flag.BoolVar(&flagVerbose, "v", false, "verbose output")
 	flag.Usage = usage
@@ -27,7 +27,7 @@ func usage() {
 }
 
 func genCapacityExample(shape string) {
-	var nrs []schedule.NodeResources
+	var nrs []schedule.NodeDevices
 
 	switch shape {
 	case "0":
@@ -59,7 +59,7 @@ func unmarshalFile(file string, obj interface{}) error {
 
 func schedulePod(nodesFile, claimFile string) error {
 
-	var nrs []schedule.NodeResources
+	var nrs []schedule.NodeDevices
 	err := unmarshalFile(nodesFile, &nrs)
 	if err != nil {
 		return err

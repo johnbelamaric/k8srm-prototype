@@ -17,9 +17,9 @@ func genCapNumaNode(num int, cpu, mem resource.Quantity) []Capacity {
 			Block: &ResourceBlock{resource.MustParse("10m"), cpu},
 			Topologies: []Topology{
 				{
-					Name:            fmt.Sprintf("numa-%d", num),
-					Type:            "numa",
-					GroupInResource: true,
+					Name:          fmt.Sprintf("numa-%d", num),
+					Type:          "numa",
+					GroupInDevice: true,
 				},
 			},
 		},
@@ -28,9 +28,9 @@ func genCapNumaNode(num int, cpu, mem resource.Quantity) []Capacity {
 			Block: &ResourceBlock{resource.MustParse("1Mi"), mem},
 			Topologies: []Topology{
 				{
-					Name:            fmt.Sprintf("numa-%d", num),
-					Type:            "numa",
-					GroupInResource: true,
+					Name:          fmt.Sprintf("numa-%d", num),
+					Type:          "numa",
+					GroupInDevice: true,
 				},
 			},
 		},
@@ -41,7 +41,7 @@ type numaGen struct {
 	cpu, mem string
 }
 
-func genCapPrimaryPool(node, os, kernel, hw string, numa ...numaGen) ResourcePool {
+func genCapPrimaryPool(node, os, kernel, hw string, numa ...numaGen) DevicePool {
 	capacities := []Capacity{
 		{
 			Name:    "pods",
@@ -56,7 +56,7 @@ func genCapPrimaryPool(node, os, kernel, hw string, numa ...numaGen) ResourcePoo
 		capacities = append(capacities, genCapNumaNode(i, resource.MustParse(n.cpu), resource.MustParse(n.mem))...)
 	}
 
-	return ResourcePool{
+	return DevicePool{
 		Driver: "kubelet",
 		Name:   "primary",
 		Attributes: []Attribute{
@@ -64,29 +64,29 @@ func genCapPrimaryPool(node, os, kernel, hw string, numa ...numaGen) ResourcePoo
 			{Name: "kernel-release", SemVerValue: ptr(SemVer(kernel))},
 			{Name: "hardware-platform", StringValue: &hw},
 		},
-		Resources: []Resource{{
+		Devices: []Device{{
 			Name:       "primary",
 			Capacities: capacities,
 		}},
 	}
 }
 
-func genCapFoozerResources(start, num int, model, version, conn, net, mem, foos string, vfs int64) []Resource {
-	var resources []Resource
+func genCapFoozerDevices(start, num int, model, version, conn, net, mem, foos string, vfs int64) []Device {
+	var devices []Device
 	for i := start; i < (start + num); i++ {
 		topos := []Topology{
 			{
-				Name:            fmt.Sprintf("numa-%d", i/2),
-				Type:            "numa",
-				GroupInResource: true,
+				Name:          fmt.Sprintf("numa-%d", i/2),
+				Type:          "numa",
+				GroupInDevice: true,
 			},
 			{
-				Name:            fmt.Sprintf("pci-%d", i%2),
-				Type:            "pci",
-				GroupInResource: true,
+				Name:          fmt.Sprintf("pci-%d", i%2),
+				Type:          "pci",
+				GroupInDevice: true,
 			},
 		}
-		resources = append(resources, Resource{
+		devices = append(devices, Device{
 			Name: fmt.Sprintf("dev-foo-%d", i),
 			Attributes: []Attribute{
 				{Name: "model", StringValue: &model},
@@ -108,26 +108,26 @@ func genCapFoozerResources(start, num int, model, version, conn, net, mem, foos 
 					Name:    "example.com/foozer/interfaces",
 					Counter: &ResourceCounter{vfs},
 					Topologies: append(topos, Topology{
-						Name:            net,
-						Type:            "foo-net",
-						GroupInResource: true,
+						Name:          net,
+						Type:          "foo-net",
+						GroupInDevice: true,
 					}),
 				},
 			},
 		})
 	}
-	return resources
+	return devices
 }
 
-// shape zero are compute nodes with no specialized resources
+// shape zero are compute nodes with no specialized devices
 // They have 16 CPUs and 128Gi divided equally in two NUMA nodes
-func GenCapShapeZero(num int) []NodeResources {
-	var nrs []NodeResources
+func GenCapShapeZero(num int) []NodeDevices {
+	var nrs []NodeDevices
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-zero-%03d", i)
-		nrs = append(nrs, NodeResources{
+		nrs = append(nrs, NodeDevices{
 			Name: node,
-			Pools: []ResourcePool{
+			Pools: []DevicePool{
 				genCapPrimaryPool(node, "linux", "5.15.0-1046-gcp", "x86_64", numaGen{"8", "64Gi"}, numaGen{"8", "64Gi"}),
 			},
 		})
@@ -140,8 +140,8 @@ func GenCapShapeZero(num int) []NodeResources {
 // the node has foozer kernel module/driver v7.8.1-gen6
 // foozer 1000s only support node-local topology for their foo nets,
 // so each node gets a separate foonet topology instance
-func GenCapShapeOne(num int) []NodeResources {
-	pool := ResourcePool{
+func GenCapShapeOne(num int) []NodeDevices {
+	pool := DevicePool{
 		Driver: "example.com/foozer",
 		Name:   "foozer-1000-01",
 		Attributes: []Attribute{
@@ -149,14 +149,14 @@ func GenCapShapeOne(num int) []NodeResources {
 		},
 	}
 
-	var nrs []NodeResources
+	var nrs []NodeDevices
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-one-%03d", i)
-		pool.Resources = genCapFoozerResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-one-%03d", i), "64Gi", "8", 16)
+		pool.Devices = genCapFoozerDevices(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-one-%03d", i), "64Gi", "8", 16)
 
-		nrs = append(nrs, NodeResources{
+		nrs = append(nrs, NodeDevices{
 			Name: node,
-			Pools: []ResourcePool{
+			Pools: []DevicePool{
 				genCapPrimaryPool(node, "linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"}),
 				pool,
 			},
@@ -170,22 +170,22 @@ func GenCapShapeOne(num int) []NodeResources {
 // the node requires a slightly different foozer kernel module/driver than shape one
 // foozer 4000s support inter-node foonets, so there multiple nodes may be connected
 // to a foonet topology. foozer-4000s have 40GB connections not 10GB
-func GenCapShapeTwo(num, nets int) []NodeResources {
-	pool := ResourcePool{
+func GenCapShapeTwo(num, nets int) []NodeDevices {
+	pool := DevicePool{
 		Driver: "example.com/foozer",
 		Name:   "foozer-4000-01",
 		Attributes: []Attribute{
 			{Name: "driver-version", SemVerValue: ptr(SemVer("7.8.2-gen8"))},
 		},
 	}
-	var nrs []NodeResources
+	var nrs []NodeDevices
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-two-%03d", i)
-		pool.Resources = genCapFoozerResources(0, 8, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-two-%02d", i%nets), "256Gi", "16", 64)
+		pool.Devices = genCapFoozerDevices(0, 8, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-two-%02d", i%nets), "256Gi", "16", 64)
 
-		nrs = append(nrs, NodeResources{
+		nrs = append(nrs, NodeDevices{
 			Name: node,
-			Pools: []ResourcePool{
+			Pools: []DevicePool{
 				genCapPrimaryPool(node, "linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"}),
 				pool,
 			},
@@ -195,8 +195,8 @@ func GenCapShapeTwo(num, nets int) []NodeResources {
 }
 
 // shape three consists of a mix 4 foozer-1000s and 4 foozer-4000s
-func GenCapShapeThree(num, nets int) []NodeResources {
-	pool1 := ResourcePool{
+func GenCapShapeThree(num, nets int) []NodeDevices {
+	pool1 := DevicePool{
 		Driver: "example.com/foozer",
 		Name:   "foozer-1000-01",
 		Attributes: []Attribute{
@@ -207,15 +207,15 @@ func GenCapShapeThree(num, nets int) []NodeResources {
 	pool2 := pool1
 	pool2.Name = "foozer-4000-01"
 
-	var nrs []NodeResources
+	var nrs []NodeDevices
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-three-%03d", i)
-		pool1.Resources = genCapFoozerResources(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-three-%03d", i), "64Gi", "8", 16)
-		pool2.Resources = genCapFoozerResources(4, 4, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-three-%02d", i%nets), "256Gi", "16", 64)
+		pool1.Devices = genCapFoozerDevices(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-three-%03d", i), "64Gi", "8", 16)
+		pool2.Devices = genCapFoozerDevices(4, 4, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-three-%02d", i%nets), "256Gi", "16", 64)
 
-		nrs = append(nrs, NodeResources{
+		nrs = append(nrs, NodeDevices{
 			Name: fmt.Sprintf("shape-three-%03d", i),
-			Pools: []ResourcePool{
+			Pools: []DevicePool{
 				genCapPrimaryPool(node, "linux", "5.15.0-1046-gcp", "x86_64", numaGen{"4", "32Gi"}, numaGen{"4", "32Gi"}),
 				pool1,
 				pool2,
@@ -228,8 +228,8 @@ func GenCapShapeThree(num, nets int) []NodeResources {
 
 // claim generators
 
-func genClaimPod() ResourceClaim {
-	return ResourceClaim{
+func genClaimPod() DeviceClaim {
+	return DeviceClaim{
 		Name: "pod",
 		Capacities: []CapacityRequest{
 			{
@@ -240,8 +240,8 @@ func genClaimPod() ResourceClaim {
 	}
 }
 
-func genClaimContainer(cpu, mem string) ResourceClaim {
-	rc := ResourceClaim{
+func genClaimContainer(cpu, mem string) DeviceClaim {
+	rc := DeviceClaim{
 		Name: "container",
 		Capacities: []CapacityRequest{
 			{
@@ -267,8 +267,8 @@ func genClaimContainer(cpu, mem string) ResourceClaim {
 	return rc
 }
 
-func genClaimFoozer(name, cores, mem string, vfs int64) ResourceClaim {
-	return ResourceClaim{
+func genClaimFoozer(name, cores, mem string, vfs int64) DeviceClaim {
+	return DeviceClaim{
 		Name:   name,
 		Driver: "example.com/foozer",
 		Capacities: []CapacityRequest{
