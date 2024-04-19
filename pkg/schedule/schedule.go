@@ -96,8 +96,8 @@ func (nr *NodeDevices) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimRes
 func (pool *DevicePool) AllocateCapacity(rc DeviceClaim) PoolResult {
 	result := PoolResult{PoolName: pool.Name, Best: -1}
 
-	if rc.Driver != "" && rc.Driver != pool.Driver {
-		result.FailureReason = fmt.Sprintf("pool driver %q mismatch claim driver %q", pool.Driver, rc.Driver)
+	if rc.Spec.Driver != "" && rc.Spec.Driver != pool.Driver {
+		result.FailureReason = fmt.Sprintf("pool driver %q mismatch claim driver %q", pool.Driver, rc.Spec.Driver)
 		return result
 	}
 
@@ -105,7 +105,7 @@ func (pool *DevicePool) AllocateCapacity(rc DeviceClaim) PoolResult {
 	// filter out devices that do not meet the constraints
 	for i, r := range pool.Devices {
 		rResult := DeviceResult{DeviceName: r.Name}
-		pass, err := r.MeetsConstraints(rc.Constraints, pool.Attributes)
+		pass, err := r.MeetsConstraints(rc.Spec.Constraints, pool.Attributes)
 		if err != nil {
 			rResult.FailureReason = fmt.Sprintf("error evaluating against constraints: %s", err)
 			result.DeviceResults = append(result.DeviceResults, rResult)
@@ -231,7 +231,7 @@ func (r *Device) AllocateCapacity(rc DeviceClaim) ([]CapacityResult, string) {
 	}
 
 	// evaluate each claim capacity and see if we can satisfy it
-	for _, cr := range rc.Capacities {
+	for _, cr := range rc.Spec.Requests {
 		availCap, ok := capacityMap[cr.Capacity]
 		if !ok {
 			return nil, fmt.Sprintf("no capacity %q present in device %q", cr.Capacity, r.Name)

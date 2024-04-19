@@ -2,7 +2,9 @@ package schedule
 
 import (
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func ptr[T any](val T) *T {
@@ -228,61 +230,31 @@ func GenCapShapeThree(num, nets int) []NodeDevices {
 
 // claim generators
 
-func genClaimPod() DeviceClaim {
-	return DeviceClaim{
-		Name: "pod",
-		Capacities: []CapacityRequest{
-			{
-				Capacity: "pods",
-				Counter:  &ResourceCounterRequest{Request: 1},
-			},
-		},
-	}
-}
-
-func genClaimContainer(cpu, mem string) DeviceClaim {
-	rc := DeviceClaim{
-		Name: "container",
-		Capacities: []CapacityRequest{
-			{
-				Capacity: "containers",
-				Counter:  &ResourceCounterRequest{Request: 1},
-			},
-		},
-	}
-
-	if cpu != "" {
-		rc.Capacities = append(rc.Capacities, CapacityRequest{
-			Capacity: "cpu",
-			Quantity: &ResourceQuantityRequest{Request: resource.MustParse(cpu)},
-		})
-	}
-	if mem != "" {
-		rc.Capacities = append(rc.Capacities, CapacityRequest{
-			Capacity: "memory",
-			Quantity: &ResourceQuantityRequest{Request: resource.MustParse(mem)},
-		})
-	}
-
-	return rc
-}
-
 func genClaimFoozer(name, cores, mem string, vfs int64) DeviceClaim {
 	return DeviceClaim{
-		Name:   name,
-		Driver: "example.com/foozer",
-		Capacities: []CapacityRequest{
-			{
-				Capacity: "example.com/foozer/cores",
-				Quantity: &ResourceQuantityRequest{Request: resource.MustParse(cores)},
-			},
-			{
-				Capacity: "example.com/foozer/memory",
-				Quantity: &ResourceQuantityRequest{Request: resource.MustParse(mem)},
-			},
-			{
-				Capacity: "example.com/foozer/interfaces",
-				Counter:  &ResourceCounterRequest{Request: vfs},
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "example.k8s.io/v1alpha1",
+			Kind:       "DeviceClaim",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: "default",
+		},
+		Spec: DeviceClaimSpec{
+			Driver: "example.com/foozer",
+			Requests: []CapacityRequest{
+				{
+					Capacity: "example.com/foozer/cores",
+					Quantity: &ResourceQuantityRequest{Request: resource.MustParse(cores)},
+				},
+				{
+					Capacity: "example.com/foozer/memory",
+					Quantity: &ResourceQuantityRequest{Request: resource.MustParse(mem)},
+				},
+				{
+					Capacity: "example.com/foozer/interfaces",
+					Counter:  &ResourceCounterRequest{Request: vfs},
+				},
 			},
 		},
 	}

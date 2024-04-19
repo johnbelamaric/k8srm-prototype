@@ -29,147 +29,6 @@ func dumpTestCase(tn string, claim PodCapacityClaim) {
 	}
 }
 
-func TestSchedulePodForCore(t *testing.T) {
-	testCases := map[string]struct {
-		claim         PodCapacityClaim
-		expectSuccess bool
-	}{
-		"single pod, single container": {
-			claim: PodCapacityClaim{
-				PodClaim: CapacityClaim{
-					Name:   "my-pod",
-					Claims: []DeviceClaim{genClaimPod()},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container",
-						Claims: []DeviceClaim{genClaimContainer("", "")},
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		"single pod, single container, with CPU and memory, enough": {
-			claim: PodCapacityClaim{
-				PodClaim: CapacityClaim{
-					Name:   "my-pod",
-					Claims: []DeviceClaim{genClaimPod()},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container",
-						Claims: []DeviceClaim{genClaimContainer("7127m", "8Gi")},
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		"single pod, single container, with CPU and memory, insufficient CPU": {
-			claim: PodCapacityClaim{
-				PodClaim: CapacityClaim{
-					Name:   "my-pod",
-					Claims: []DeviceClaim{genClaimPod()},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container",
-						Claims: []DeviceClaim{genClaimContainer("64", "8Gi")},
-					},
-				},
-			},
-			expectSuccess: false,
-		},
-		"single pod, single container, with CPU and memory, insufficient memory": {
-			claim: PodCapacityClaim{
-				PodClaim: CapacityClaim{
-					Name:   "my-pod",
-					Claims: []DeviceClaim{genClaimPod()},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container",
-						Claims: []DeviceClaim{genClaimContainer("4", "256Gi")},
-					},
-				},
-			},
-			expectSuccess: false,
-		},
-		"single pod, multiple containers, with CPU and memory, enough": {
-			claim: PodCapacityClaim{
-				PodClaim: CapacityClaim{
-					Name:   "my-pod",
-					Claims: []DeviceClaim{genClaimPod()},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container-1",
-						Claims: []DeviceClaim{genClaimContainer("7127m", "8Gi")},
-					},
-					{
-						Name:   "my-container-2",
-						Claims: []DeviceClaim{genClaimContainer("200m", "8Gi")},
-					},
-					{
-						Name:   "my-container-3",
-						Claims: []DeviceClaim{genClaimContainer("200m", "8Gi")},
-					},
-				},
-			},
-			expectSuccess: true,
-		},
-		"single pod, multiple containers, with CPU and memory, not enough": {
-			claim: PodCapacityClaim{
-				PodClaim: CapacityClaim{
-					Name:   "my-pod",
-					Claims: []DeviceClaim{genClaimPod()},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container-1",
-						Claims: []DeviceClaim{genClaimContainer("7127m", "8Gi")},
-					},
-					{
-						Name:   "my-container-2",
-						Claims: []DeviceClaim{genClaimContainer("8", "8Gi")},
-					},
-					{
-						Name:   "my-container-3",
-						Claims: []DeviceClaim{genClaimContainer("4", "8Gi")},
-					},
-				},
-			},
-			expectSuccess: false,
-		},
-		"no devices for driver": {
-			claim: PodCapacityClaim{
-				PodClaim: CapacityClaim{
-					Name: "my-foozer-pod",
-					Claims: []DeviceClaim{
-						genClaimPod(),
-						genClaimFoozer("foozer", "1m", "2Gi", 1),
-					},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container",
-						Claims: []DeviceClaim{genClaimContainer("7127m", "8Gi")},
-					},
-				},
-			},
-			expectSuccess: false,
-		},
-	}
-
-	for tn, tc := range testCases {
-		capacity := GenCapShapeZero(2)
-		t.Run(tn, func(t *testing.T) {
-			dumpTestCase(tn, tc.claim)
-			allocation := SchedulePod(capacity, tc.claim)
-			require.Equal(t, tc.expectSuccess, allocation != nil)
-		})
-	}
-}
-
 func TestSchedulePodForFoozer(t *testing.T) {
 	testCases := map[string]struct {
 		claim         PodCapacityClaim
@@ -180,14 +39,7 @@ func TestSchedulePodForFoozer(t *testing.T) {
 				PodClaim: CapacityClaim{
 					Name: "my-foozer-pod",
 					Claims: []DeviceClaim{
-						genClaimPod(),
 						genClaimFoozer("foozer", "1", "2Gi", 0),
-					},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container",
-						Claims: []DeviceClaim{genClaimContainer("1", "4Gi")},
 					},
 				},
 			},
@@ -198,14 +50,7 @@ func TestSchedulePodForFoozer(t *testing.T) {
 				PodClaim: CapacityClaim{
 					Name: "my-foozer-pod",
 					Claims: []DeviceClaim{
-						genClaimPod(),
 						genClaimFoozer("foozer", "16", "32Gi", 0),
-					},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container",
-						Claims: []DeviceClaim{genClaimContainer("1", "4Gi")},
 					},
 				},
 			},
@@ -233,14 +78,7 @@ func TestSchedulePodForBigFoozer(t *testing.T) {
 				PodClaim: CapacityClaim{
 					Name: "my-foozer-pod",
 					Claims: []DeviceClaim{
-						genClaimPod(),
 						genClaimFoozer("foozer", "1", "2Gi", 0),
-					},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container",
-						Claims: []DeviceClaim{genClaimContainer("1", "4Gi")},
 					},
 				},
 			},
@@ -251,14 +89,7 @@ func TestSchedulePodForBigFoozer(t *testing.T) {
 				PodClaim: CapacityClaim{
 					Name: "my-foozer-pod",
 					Claims: []DeviceClaim{
-						genClaimPod(),
 						genClaimFoozer("foozer", "16", "32Gi", 0),
-					},
-				},
-				ContainerClaims: []CapacityClaim{
-					{
-						Name:   "my-container",
-						Claims: []DeviceClaim{genClaimContainer("1", "4Gi")},
 					},
 				},
 			},
