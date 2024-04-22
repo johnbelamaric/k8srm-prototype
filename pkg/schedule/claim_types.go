@@ -372,7 +372,7 @@ type TopologyConstraint struct {
 
 type CapacityRequest struct {
 	// +required
-	Capacity string `json:"capacity"`
+	Resource string `json:"resource"`
 
 	// one of these must be populated
 	// note that we only need three different type of capacity requests

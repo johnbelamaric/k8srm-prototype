@@ -96,16 +96,16 @@ func (nr *NodeDevices) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimRes
 func (pool *DevicePool) AllocateCapacity(rc DeviceClaim) PoolResult {
 	result := PoolResult{PoolName: pool.Name, Best: -1}
 
-	if rc.Spec.Driver != nil && *rc.Spec.Driver != "" && *rc.Spec.Driver != pool.Driver {
-		result.FailureReason = fmt.Sprintf("pool driver %q mismatch claim driver %q", pool.Driver, *rc.Spec.Driver)
+	if rc.Spec.Driver != nil && *rc.Spec.Driver != "" && *rc.Spec.Driver != pool.Spec.Driver {
+		result.FailureReason = fmt.Sprintf("pool driver %q mismatch claim driver %q", pool.Spec.Driver, *rc.Spec.Driver)
 		return result
 	}
 
 	best := -1
 	// filter out devices that do not meet the constraints
-	for i, r := range pool.Devices {
+	for i, r := range pool.Spec.Devices {
 		rResult := DeviceResult{DeviceName: r.Name}
-		pass, err := r.MeetsConstraints(rc.Spec.Constraints, pool.Attributes)
+		pass, err := r.MeetsConstraints(rc.Spec.Constraints, pool.Spec.Attributes)
 		if err != nil {
 			rResult.FailureReason = fmt.Sprintf("error evaluating against constraints: %s", err)
 			result.DeviceResults = append(result.DeviceResults, rResult)
@@ -156,11 +156,11 @@ func (pool *DevicePool) ReduceCapacity(pr PoolResult) error {
 		return fmt.Errorf("cannot reduce pool %q capacity from unsatisfied result", pool.Name)
 	}
 
-	if len(pool.Devices) != len(pr.DeviceResults) {
+	if len(pool.Spec.Devices) != len(pr.DeviceResults) {
 		return fmt.Errorf("pool %q devices and device result list differ in length", pool.Name)
 	}
 
-	return pool.Devices[pr.Best].ReduceCapacity(pr.DeviceResults[pr.Best].CapacityResults)
+	return pool.Spec.Devices[pr.Best].ReduceCapacity(pr.DeviceResults[pr.Best].CapacityResults)
 }
 
 // Device methods
@@ -174,7 +174,7 @@ func (r *Device) ReduceCapacity(allocations []CapacityResult) error {
 
 	// index our capacities by their unique topologies
 	capMap := make(map[string]int)
-	for i, capacity := range r.Capacities {
+	for i, capacity := range r.Resources {
 		capMap[capacity.capKey()] = i
 	}
 
@@ -184,7 +184,7 @@ func (r *Device) ReduceCapacity(allocations []CapacityResult) error {
 			return fmt.Errorf("allocated capacity %q not found in device capacities", ca.capKey())
 		}
 		var err error
-		r.Capacities[idx], err = r.Capacities[idx].reduce(ca.CapacityRequest)
+		r.Resources[idx], err = r.Resources[idx].reduce(ca.CapacityRequest)
 		if err != nil {
 			return err
 		}
@@ -199,12 +199,12 @@ func (ca *CapacityResult) capKey() string {
 		topoList = append(topoList, fmt.Sprintf("%s=%s", ta.Type, ta.Name))
 	}
 	sort.Strings(topoList)
-	keyList = append(keyList, ca.CapacityRequest.Capacity)
+	keyList = append(keyList, ca.CapacityRequest.Resource)
 	keyList = append(keyList, topoList...)
 	return strings.Join(keyList, ";")
 }
 
-func (c Capacity) capKey() string {
+func (c ResourceCapacity) capKey() string {
 	topos := make(map[string]string)
 	for _, t := range c.Topologies {
 		topos[t.Type] = t.Name
@@ -225,16 +225,16 @@ func (r *Device) AllocateCapacity(rc DeviceClaim) ([]CapacityResult, string) {
 	// index the capacities in the device. this results in an array per
 	// capacity name, with the individual per-topology capacities as the
 	// entries in the array
-	capacityMap := make(map[string][]Capacity)
-	for _, c := range r.Capacities {
+	capacityMap := make(map[string][]ResourceCapacity)
+	for _, c := range r.Resources {
 		capacityMap[c.Name] = append(capacityMap[c.Name], c)
 	}
 
 	// evaluate each claim capacity and see if we can satisfy it
 	for _, cr := range rc.Spec.Requests {
-		availCap, ok := capacityMap[cr.Capacity]
+		availCap, ok := capacityMap[cr.Resource]
 		if !ok {
-			return nil, fmt.Sprintf("no capacity %q present in device %q", cr.Capacity, r.Name)
+			return nil, fmt.Sprintf("no capacity %q present in device %q", cr.Resource, r.Name)
 		}
 		satisfied := false
 		// TODO(johnbelamaric): currently ignores GroupInDevice value and assumes 'true'
@@ -243,12 +243,12 @@ func (r *Device) AllocateCapacity(rc DeviceClaim) ([]CapacityResult, string) {
 		for i, capInTopo := range availCap {
 			allocReq, remainReq, err := capInTopo.AllocateRequest(unsatReq)
 			if err != nil {
-				return nil, fmt.Sprintf("error evaluating capacity %q in device %q: %s", cr.Capacity, r.Name, err)
+				return nil, fmt.Sprintf("error evaluating capacity %q in device %q: %s", cr.Resource, r.Name, err)
 			}
 			if allocReq != nil {
-				capacityMap[cr.Capacity][i], err = availCap[i].reduce(allocReq.CapacityRequest)
+				capacityMap[cr.Resource][i], err = availCap[i].reduce(allocReq.CapacityRequest)
 				if err != nil {
-					return nil, fmt.Sprintf("err reducing capacity %q in device %q: %s", cr.Capacity, r.Name, err)
+					return nil, fmt.Sprintf("err reducing capacity %q in device %q: %s", cr.Resource, r.Name, err)
 				}
 				result = append(result, *allocReq)
 			}
@@ -261,21 +261,21 @@ func (r *Device) AllocateCapacity(rc DeviceClaim) ([]CapacityResult, string) {
 			unsatReq = *remainReq
 		}
 		if !satisfied {
-			return nil, fmt.Sprintf("insufficient capacity %q present in device %q", cr.Capacity, r.Name)
+			return nil, fmt.Sprintf("insufficient capacity %q present in device %q", cr.Resource, r.Name)
 		}
 	}
 
 	return result, ""
 }
 
-// Capacity methods
+// ResourceCapacity methods
 
-func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, *CapacityRequest, error) {
+func (c ResourceCapacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, *CapacityRequest, error) {
 	if c.Counter != nil && cr.Counter != nil {
 		if cr.Counter.Request <= c.Counter.Capacity {
 			return &CapacityResult{
 				CapacityRequest: CapacityRequest{
-					Capacity: cr.Capacity,
+					Resource: cr.Resource,
 					Counter:  &ResourceCounterRequest{cr.Counter.Request},
 				},
 				Topologies: c.topologyAssignments(),
@@ -286,13 +286,13 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, *Capacit
 		}
 		return &CapacityResult{
 				CapacityRequest: CapacityRequest{
-					Capacity: cr.Capacity,
+					Resource: cr.Resource,
 					Counter:  &ResourceCounterRequest{c.Counter.Capacity},
 				},
 				Topologies: c.topologyAssignments(),
 			},
 			&CapacityRequest{
-				Capacity: cr.Capacity,
+				Resource: cr.Resource,
 				Counter:  &ResourceCounterRequest{cr.Counter.Request - c.Counter.Capacity},
 			},
 			nil
@@ -302,7 +302,7 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, *Capacit
 		if cr.Quantity.Request.Cmp(c.Quantity.Capacity) <= 0 {
 			return &CapacityResult{
 				CapacityRequest: CapacityRequest{
-					Capacity: cr.Capacity,
+					Resource: cr.Resource,
 					Quantity: &ResourceQuantityRequest{cr.Quantity.Request},
 				},
 				Topologies: c.topologyAssignments(),
@@ -315,13 +315,13 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, *Capacit
 		remainder.Sub(c.Quantity.Capacity)
 		return &CapacityResult{
 				CapacityRequest: CapacityRequest{
-					Capacity: cr.Capacity,
+					Resource: cr.Resource,
 					Quantity: &ResourceQuantityRequest{c.Quantity.Capacity},
 				},
 				Topologies: c.topologyAssignments(),
 			},
 			&CapacityRequest{
-				Capacity: cr.Capacity,
+				Resource: cr.Resource,
 				Quantity: &ResourceQuantityRequest{remainder},
 			},
 			nil
@@ -333,7 +333,7 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, *Capacit
 		if realRequest.Cmp(realCapacity) <= 0 {
 			return &CapacityResult{
 				CapacityRequest: CapacityRequest{
-					Capacity: cr.Capacity,
+					Resource: cr.Resource,
 					Quantity: &ResourceQuantityRequest{realRequest},
 				},
 				Topologies: c.topologyAssignments(),
@@ -346,13 +346,13 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, *Capacit
 		remainder.Sub(realCapacity)
 		return &CapacityResult{
 				CapacityRequest: CapacityRequest{
-					Capacity: cr.Capacity,
+					Resource: cr.Resource,
 					Quantity: &ResourceQuantityRequest{realCapacity},
 				},
 				Topologies: c.topologyAssignments(),
 			},
 			&CapacityRequest{
-				Capacity: cr.Capacity,
+				Resource: cr.Resource,
 				Quantity: &ResourceQuantityRequest{remainder},
 			},
 			nil
@@ -365,7 +365,7 @@ func (c Capacity) AllocateRequest(cr CapacityRequest) (*CapacityResult, *Capacit
 	return nil, &cr, fmt.Errorf("request/capacity type mismatch (%v, %v)", c, cr)
 }
 
-func (c Capacity) allocateAccessModeRequest(cr CapacityRequest) (*CapacityResult, *CapacityRequest, error) {
+func (c ResourceCapacity) allocateAccessModeRequest(cr CapacityRequest) (*CapacityResult, *CapacityRequest, error) {
 
 	// upgrade the requested mode based on the capacity's configuration
 	requestMode := cr.AccessMode.Request
@@ -411,14 +411,14 @@ func (c Capacity) allocateAccessModeRequest(cr CapacityRequest) (*CapacityResult
 
 	return &CapacityResult{
 		CapacityRequest: CapacityRequest{
-			Capacity:   cr.Capacity,
+			Resource:   cr.Resource,
 			AccessMode: &ResourceAccessModeRequest{requestMode},
 		},
 		Topologies: c.topologyAssignments(),
 	}, nil, nil
 }
 
-func (c Capacity) topologyAssignments() []TopologyAssignment {
+func (c ResourceCapacity) topologyAssignments() []TopologyAssignment {
 	var result []TopologyAssignment
 	for _, t := range c.Topologies {
 		result = append(result, TopologyAssignment{Type: t.Type, Name: t.Name})
@@ -427,13 +427,13 @@ func (c Capacity) topologyAssignments() []TopologyAssignment {
 	return result
 }
 
-// reduce applies a CapacityRequest and returns a reduced Capacity. Note that
+// reduce applies a CapacityRequest and returns a reduced ResourceCapacity. Note that
 // this assumes the CapacityRequest is one that has been returned by
 // AllocateCapacity and therefore does no validation. In particular,
 // block sizes will not be honored; that should already have been done
-func (c Capacity) reduce(cr CapacityRequest) (Capacity, error) {
-	if cr.Capacity != c.Name {
-		return Capacity{}, fmt.Errorf("cannot reduce capacity %q using request for %q", c.Name, cr.Capacity)
+func (c ResourceCapacity) reduce(cr CapacityRequest) (ResourceCapacity, error) {
+	if cr.Resource != c.Name {
+		return ResourceCapacity{}, fmt.Errorf("cannot reduce capacity %q using request for %q", c.Name, cr.Resource)
 	}
 	result := c
 	if c.Counter != nil && cr.Counter != nil {
@@ -476,7 +476,7 @@ func (c Capacity) reduce(cr CapacityRequest) (Capacity, error) {
 		return result, nil
 	}
 
-	return Capacity{}, fmt.Errorf("request/capacity type mismatch")
+	return ResourceCapacity{}, fmt.Errorf("request/capacity type mismatch")
 }
 
 func roundUpToBlock(q, size resource.Quantity) resource.Quantity {

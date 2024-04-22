@@ -8,40 +8,40 @@ import (
 
 func TestCapacityReduce(t *testing.T) {
 	testCases := map[string]struct {
-		capacity Capacity
+		capacity ResourceCapacity
 		request  CapacityRequest
-		result   Capacity
+		result   ResourceCapacity
 	}{
 		"counter": {
-			capacity: Capacity{
+			capacity: ResourceCapacity{
 				Name:    "counter-test",
 				Counter: &ResourceCounter{Capacity: 10},
 			},
 			request: CapacityRequest{
-				Capacity: "counter-test",
+				Resource: "counter-test",
 				Counter:  &ResourceCounterRequest{Request: 4},
 			},
-			result: Capacity{
+			result: ResourceCapacity{
 				Name:    "counter-test",
 				Counter: &ResourceCounter{Capacity: 6},
 			},
 		},
 		"quantity": {
-			capacity: Capacity{
+			capacity: ResourceCapacity{
 				Name:     "quantity-test",
 				Quantity: &ResourceQuantity{Capacity: resource.MustParse("10M")},
 			},
 			request: CapacityRequest{
-				Capacity: "quantity-test",
+				Resource: "quantity-test",
 				Quantity: &ResourceQuantityRequest{Request: resource.MustParse("1M")},
 			},
-			result: Capacity{
+			result: ResourceCapacity{
 				Name:     "quantity-test",
 				Quantity: &ResourceQuantity{Capacity: resource.MustParse("9M")},
 			},
 		},
 		"block": {
-			capacity: Capacity{
+			capacity: ResourceCapacity{
 				Name: "block-test",
 				Block: &ResourceBlock{
 					Capacity: resource.MustParse("10M"),
@@ -49,10 +49,10 @@ func TestCapacityReduce(t *testing.T) {
 				},
 			},
 			request: CapacityRequest{
-				Capacity: "block-test",
+				Resource: "block-test",
 				Quantity: &ResourceQuantityRequest{Request: resource.MustParse("1M")},
 			},
-			result: Capacity{
+			result: ResourceCapacity{
 				Name: "block-test",
 				Block: &ResourceBlock{
 					Capacity: resource.MustParse("9M"),
@@ -61,7 +61,7 @@ func TestCapacityReduce(t *testing.T) {
 			},
 		},
 		"accessMode-readonlyshared": {
-			capacity: Capacity{
+			capacity: ResourceCapacity{
 				Name: "access-test",
 				AccessMode: &ResourceAccessMode{
 					AllowReadOnlyShared: true,
@@ -69,10 +69,10 @@ func TestCapacityReduce(t *testing.T) {
 				},
 			},
 			request: CapacityRequest{
-				Capacity:   "access-test",
+				Resource:   "access-test",
 				AccessMode: &ResourceAccessModeRequest{Request: ReadOnlyShared},
 			},
-			result: Capacity{
+			result: ResourceCapacity{
 				Name: "access-test",
 				AccessMode: &ResourceAccessMode{
 					AllowReadOnlyShared: true,
@@ -81,7 +81,7 @@ func TestCapacityReduce(t *testing.T) {
 			},
 		},
 		"accessMode-readwriteshared": {
-			capacity: Capacity{
+			capacity: ResourceCapacity{
 				Name: "access-test",
 				AccessMode: &ResourceAccessMode{
 					AllowReadWriteShared: true,
@@ -89,10 +89,10 @@ func TestCapacityReduce(t *testing.T) {
 				},
 			},
 			request: CapacityRequest{
-				Capacity:   "access-test",
+				Resource:   "access-test",
 				AccessMode: &ResourceAccessModeRequest{Request: ReadWriteShared},
 			},
-			result: Capacity{
+			result: ResourceCapacity{
 				Name: "access-test",
 				AccessMode: &ResourceAccessMode{
 					AllowReadWriteShared: true,
@@ -121,7 +121,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 		"missing capacity name for allocation": {
 			device: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name:    "counter-test",
 						Counter: &ResourceCounter{Capacity: 10},
@@ -131,7 +131,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
-						Capacity: "invalid-counter-test",
+						Resource: "invalid-counter-test",
 						Counter:  &ResourceCounterRequest{Request: 4},
 					},
 				},
@@ -141,7 +141,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 		"missing capacity topology for allocation": {
 			device: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name:    "counter-test",
 						Counter: &ResourceCounter{Capacity: 10},
@@ -151,7 +151,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
-						Capacity: "counter-test",
+						Resource: "counter-test",
 						Counter:  &ResourceCounterRequest{Request: 4},
 					},
 					Topologies: []TopologyAssignment{
@@ -167,7 +167,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 		"single counter": {
 			device: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name:    "counter-test",
 						Counter: &ResourceCounter{Capacity: 10},
@@ -177,14 +177,14 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
-						Capacity: "counter-test",
+						Resource: "counter-test",
 						Counter:  &ResourceCounterRequest{Request: 4},
 					},
 				},
 			},
 			result: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name:    "counter-test",
 						Counter: &ResourceCounter{Capacity: 6},
@@ -195,7 +195,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 		"single quantity": {
 			device: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name:     "quantity-test",
 						Quantity: &ResourceQuantity{Capacity: resource.MustParse("10M")},
@@ -205,14 +205,14 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
-						Capacity: "quantity-test",
+						Resource: "quantity-test",
 						Quantity: &ResourceQuantityRequest{Request: resource.MustParse("1M")},
 					},
 				},
 			},
 			result: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name:     "quantity-test",
 						Quantity: &ResourceQuantity{Capacity: resource.MustParse("9M")},
@@ -223,7 +223,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 		"single block": {
 			device: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name: "block-test",
 						Block: &ResourceBlock{
@@ -236,14 +236,14 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
-						Capacity: "block-test",
+						Resource: "block-test",
 						Quantity: &ResourceQuantityRequest{Request: resource.MustParse("1M")},
 					},
 				},
 			},
 			result: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name: "block-test",
 						Block: &ResourceBlock{
@@ -257,7 +257,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 		"multiple capacities, one allocation": {
 			device: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name:    "counter-test",
 						Counter: &ResourceCounter{Capacity: 10},
@@ -271,14 +271,14 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
-						Capacity: "counter-test",
+						Resource: "counter-test",
 						Counter:  &ResourceCounterRequest{Request: 4},
 					},
 				},
 			},
 			result: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name:    "counter-test",
 						Counter: &ResourceCounter{Capacity: 6},
@@ -293,7 +293,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 		"multiple capacities, multiple allocations": {
 			device: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name:    "counter-test",
 						Counter: &ResourceCounter{Capacity: 10},
@@ -307,20 +307,20 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
-						Capacity: "counter-test",
+						Resource: "counter-test",
 						Counter:  &ResourceCounterRequest{Request: 4},
 					},
 				},
 				{
 					CapacityRequest: CapacityRequest{
-						Capacity: "counter-test-two",
+						Resource: "counter-test-two",
 						Counter:  &ResourceCounterRequest{Request: 1},
 					},
 				},
 			},
 			result: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name:    "counter-test",
 						Counter: &ResourceCounter{Capacity: 6},
@@ -335,7 +335,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 		"single capacity with single topology": {
 			device: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name: "counter-test",
 						Topologies: []Topology{
@@ -352,7 +352,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
-						Capacity: "counter-test",
+						Resource: "counter-test",
 						Counter:  &ResourceCounterRequest{Request: 4},
 					},
 					Topologies: []TopologyAssignment{
@@ -365,7 +365,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			},
 			result: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name: "counter-test",
 						Topologies: []Topology{
@@ -383,7 +383,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 		"single capacity, single topology type, multiple topologies": {
 			device: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name: "counter-test",
 						Topologies: []Topology{
@@ -411,7 +411,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			allocations: []CapacityResult{
 				{
 					CapacityRequest: CapacityRequest{
-						Capacity: "counter-test",
+						Resource: "counter-test",
 						Counter:  &ResourceCounterRequest{Request: 4},
 					},
 					Topologies: []TopologyAssignment{
@@ -424,7 +424,7 @@ func TestDeviceReduceCapacity(t *testing.T) {
 			},
 			result: Device{
 				Name: "test",
-				Capacities: []Capacity{
+				Resources: []ResourceCapacity{
 					{
 						Name: "counter-test",
 						Topologies: []Topology{
@@ -467,27 +467,29 @@ func TestDeviceReduceCapacity(t *testing.T) {
 
 func TestPoolReduceCapacity(t *testing.T) {
 	basePool := DevicePool{
-		Name:   "primary",
-		Driver: "kubelet",
-		Devices: []Device{
-			{
-				Name: "primary",
-				Capacities: []Capacity{
-					{
-						Name:    "pods",
-						Counter: &ResourceCounter{100},
-					},
-					{
-						Name:    "containers",
-						Counter: &ResourceCounter{1000},
+		Spec: DevicePoolSpec{
+			Driver: "kubelet",
+			Devices: []Device{
+				{
+					Name: "primary",
+					Resources: []ResourceCapacity{
+						{
+							Name:    "pods",
+							Counter: &ResourceCounter{100},
+						},
+						{
+							Name:    "containers",
+							Counter: &ResourceCounter{1000},
+						},
 					},
 				},
 			},
 		},
 	}
 
+	basePool.Name = "primary"
 	singleAllocPool := basePool
-	singleAllocPool.Devices[0].Capacities[0].Counter.Capacity = 96
+	singleAllocPool.Spec.Devices[0].Resources[0].Counter.Capacity = 96
 
 	testCases := map[string]struct {
 		pool       DevicePool
@@ -505,7 +507,7 @@ func TestPoolReduceCapacity(t *testing.T) {
 						CapacityResults: []CapacityResult{
 							{
 								CapacityRequest: CapacityRequest{
-									Capacity: "pods",
+									Resource: "pods",
 									Counter:  &ResourceCounterRequest{Request: 4},
 								},
 							},
