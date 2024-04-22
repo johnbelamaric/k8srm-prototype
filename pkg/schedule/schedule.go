@@ -96,8 +96,8 @@ func (nr *NodeDevices) AllocateCapacityClaim(cc *CapacityClaim) CapacityClaimRes
 func (pool *DevicePool) AllocateCapacity(rc DeviceClaim) PoolResult {
 	result := PoolResult{PoolName: pool.Name, Best: -1}
 
-	if rc.Spec.Driver != "" && rc.Spec.Driver != pool.Driver {
-		result.FailureReason = fmt.Sprintf("pool driver %q mismatch claim driver %q", pool.Driver, rc.Spec.Driver)
+	if rc.Spec.Driver != nil && *rc.Spec.Driver != "" && *rc.Spec.Driver != pool.Driver {
+		result.FailureReason = fmt.Sprintf("pool driver %q mismatch claim driver %q", pool.Driver, *rc.Spec.Driver)
 		return result
 	}
 

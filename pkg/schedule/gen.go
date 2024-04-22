@@ -241,7 +241,7 @@ func genClaimFoozer(name, cores, mem string, vfs int64) DeviceClaim {
 			Namespace: "default",
 		},
 		Spec: DeviceClaimSpec{
-			Driver: "example.com/foozer",
+			Driver: ptr("example.com/foozer"),
 			Requests: []CapacityRequest{
 				{
 					Capacity: "example.com/foozer/cores",
