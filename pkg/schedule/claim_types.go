@@ -10,8 +10,8 @@ import (
 // driver with the cluster.
 // Cluster scoped.
 type DeviceDriver struct {
-	metav1.TypeMeta   `"json:,inline"`
-	metav1.ObjectMeta `"json:metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// DeviceTypes specifies which DeviceType values are handled by this
 	// driver. DeviceType is a driver-independent classification of the
@@ -34,11 +34,11 @@ type DeviceDriver struct {
 // collection of predefined data that device claims may use.
 // Cluster scoped.
 type DeviceClass struct {
-	metav1.TypeMeta   `"json:,inline"`
-	metav1.ObjectMeta `"json:metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DeviceClassSpec   `"json:spec,omitempty"`
-	Status DeviceClassStatus `"json:status,omitempty"`
+	Spec   DeviceClassSpec   `json:"spec,omitempty"`
+	Status DeviceClassStatus `json:"status,omitempty"`
 }
 
 // DeviceClassSpec provides the details of the DeviceClass.
@@ -116,11 +116,11 @@ type DeviceClassStatus struct {
 // DeviceClaim is used to specify a request for a set of devices.
 // Namespace scoped.
 type DeviceClaim struct {
-	metav1.TypeMeta   `"json:,inline"`
-	metav1.ObjectMeta `"json:metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DeviceClaimSpec   `"json:spec,omitempty"`
-	Status DeviceClaimStatus `"json:status,omitempty"`
+	Spec   DeviceClaimSpec   `json:"spec,omitempty"`
+	Status DeviceClaimStatus `json:"status,omitempty"`
 }
 
 // DeviceClaimSpec details the requirements that devices chosen
@@ -230,11 +230,11 @@ type DeviceClaimStatus struct {
 // Constraints and Configs.
 
 type DevicePrivilegedClaim struct {
-	metav1.TypeMeta   `"json:,inline"`
-	metav1.ObjectMeta `"json:metadata,omitempty"`
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   DevicePrivilegedClaimSpec   `"json:spec,omitempty"`
-	Status DevicePrivilegedClaimStatus `"json:status,omitempty"`
+	Spec   DevicePrivilegedClaimSpec   `json:"spec,omitempty"`
+	Status DevicePrivilegedClaimStatus `json:"status,omitempty"`
 }
 
 // DevicePrivilegedClaimSpec contains the details of the privileged claim.
