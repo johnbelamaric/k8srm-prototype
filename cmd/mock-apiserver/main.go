@@ -21,6 +21,7 @@ func main() {
 	k8s.RegisterType(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ConfigMap"}, "configmaps", meta.RESTScopeNamespace)
 	k8s.RegisterType(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Pod"}, "pods", meta.RESTScopeNamespace)
 	k8s.RegisterType(schema.GroupVersionKind{Group: "", Version: "v1", Kind: "Node"}, "nodes", meta.RESTScopeNamespace)
+	k8s.RegisterType(schema.GroupVersionKind{Group: "foozer.example.com", Version: "v1alpha1", Kind: "FoozerConfig"}, "foozerconfigs", meta.RESTScopeNamespace)
 	k8s.RegisterType(schema.GroupVersionKind{Group: "devmgmtproto.k8s.io", Version: "v1alpha1", Kind: "DeviceDriver"}, "devicedrivers", meta.RESTScopeRoot)
 	k8s.RegisterType(schema.GroupVersionKind{Group: "devmgmtproto.k8s.io", Version: "v1alpha1", Kind: "DeviceClass"}, "deviceclasses", meta.RESTScopeRoot)
 	k8s.RegisterType(schema.GroupVersionKind{Group: "devmgmtproto.k8s.io", Version: "v1alpha1", Kind: "DeviceClaim"}, "deviceclaims", meta.RESTScopeNamespace)
