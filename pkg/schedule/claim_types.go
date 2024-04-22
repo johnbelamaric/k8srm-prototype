@@ -91,6 +91,14 @@ type DeviceClassSpec struct {
 	// +optional
 	MaxDeviceCount *int `json:"maxDeviceCount,omitempty"`
 
+	// AttributeMatches allows specifying a constraint within a set of chosen
+	// devices, without having to explicitly specify the value of the constraint.
+	// For example, this allows constraints like "all devices must be the same model",
+	// without having to specify the exact model. We may be able to use this for some
+	// basic topology constraints too, by representing the topology as device attributes.
+	// +optional
+	AttributeMatches []string `json:"attributeMatches,omitempty"`
+
 	// AccessMode defines whether device claims using this class are requesting
 	// exclusive access or can allow shared access. If not specified, then the
 	// value from the claim will be used. Otherwise, the class value takes
@@ -159,6 +167,12 @@ type DeviceClaimSpec struct {
 	// Default is no maximum.
 	// +optional
 	MaxDeviceCount *int `json:"maxDeviceCount,omitempty"`
+
+	// AttributeMatches allows specifying a constraint within a set of chosen
+	// devices. The list here will be merged with the list (if any)  provided
+	// in the class.
+	// +optional
+	AttributeMatches []string `json:"attributeMatches,omitempty"`
 
 	// AccessMode defines whether this claim requires exclusive access or can
 	// allow shared access. If not specified, then the value from the class
