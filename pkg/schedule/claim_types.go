@@ -6,18 +6,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
-// This prototype models requests for capacity as DeviceClaims, which
-// are structured based on the workload structure. For example, we can
-// request capacity required to run a pod. This includes device claims
-// for the pod itself (for example, we have a counter for number of pods
-// allowed on a node), as well as device claims for each container in
-// the pod. Claims may include CEL-based constraints, as well as topological
-// constraints. Those topological constraints may apply to the whole pod
-// (equivalent to topology manager scope=pod), or to individual containers
-// in the pod (equivalent to topology manager scope=container).
-//
-//
-
 // DeviceDriver is a vendor provided resource that registers a given
 // driver with the cluster.
 // Cluster scoped.
