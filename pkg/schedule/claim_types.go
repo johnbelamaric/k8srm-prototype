@@ -72,6 +72,7 @@ type DeviceClass struct {
 	Configs []DeviceClassConfigReference `json:"configs,omitempty"`
 }
 
+// DeviceClaim is used to specify a request for a set of devices.
 type DeviceClaim struct {
 	metav1.TypeMeta   `"json:,inline"`
 	metav1.ObjectMeta `"json:metadata,omitempty"`
@@ -80,6 +81,8 @@ type DeviceClaim struct {
 	Status DeviceClaimStatus `"json:status,omitempty"`
 }
 
+// DeviceClaimSpec details the requirements that devices chosen
+// to satisfy this claim must meet.
 type DeviceClaimSpec struct {
 	// DeviceClass is the name of the DeviceClass containing the basic information
 	// about the device being requested.
@@ -114,16 +117,15 @@ type DeviceClaimSpec struct {
 	// +optional
 	MaxDeviceCount int `json:"maxDeviceCount,omitempty"`
 
-	// AccessMode defines whether device claims using this class are requesting
-	// exclusive access or can allow shared access. If not specified, then the
-	// value from the claim will be used. Otherwise, the class value takes
-	// precedence (or better yet, we flag an error).
+	// AccessMode defines whether this claim requires exclusive access or can
+	// allow shared access. If not specified, then the value from the class
+	// will be used. If neither is specified, exclusive access is the default.
 	// +optional
 	AccessMode DeviceAccessMode `json:"accessMode,omitempty"`
 
 	// Topologies specifies topological alignment constraints and
-	// preferences for the allocated capacities. These constraints
-	// apply across the capacities within the device.
+	// preferences for the allocated resources. These constraints
+	// apply across the resources within the set of devices.
 	// +optional
 	Topologies []TopologyConstraint `json:"topologies,omitempty"`
 
@@ -139,7 +141,6 @@ type DeviceClaimSpec struct {
 }
 
 type DeviceClaimStatus struct {
-
 	// ClassConfigs contains the entire set of dereferenced vendor
 	// configurations from the DeviceClass, as of the time of allocation.
 	// +optional
@@ -154,6 +155,8 @@ type DeviceClaimStatus struct {
 	// their resource allocations and topology assignment.
 	Allocation DeviceResult `json:"allocation,omitempty"`
 
+	// PodNames contains the names of all Pods using this claim.
+	// TODO: Can we just use ownerRefs instead?
 	PodNames []string
 }
 

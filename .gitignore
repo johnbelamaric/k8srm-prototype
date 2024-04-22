@@ -7,7 +7,7 @@
 *.dll
 *.so
 *.dylib
-schedule
+cmd/schedule/schedule
 mock-apiserver
 
 # Test binary, built with `go test -c`
