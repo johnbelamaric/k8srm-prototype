@@ -66,8 +66,10 @@ type DeviceClassSpec struct {
 	// +optional
 	Constraints *string `json:"constraints,omitempty"`
 
-	// Device classes and claims may represent or be satisfied by choosing
-	// multiple devices instead of just a single device.
+	// Device claims may represent be satisfied by choosing multiple
+	// devices instead of just a single device. The min/max fields control
+	// whether we want a single device, or a set of devices to satisfy a
+	// claim.
 
 	// MinDeviceCount is the minimum number of devices that should be selected
 	// when satsifying a claim using this class. Default is 1.
@@ -112,6 +114,7 @@ type DeviceClassStatus struct {
 }
 
 // DeviceClaim is used to specify a request for a set of devices.
+// Namespace scoped.
 type DeviceClaim struct {
 	metav1.TypeMeta   `"json:,inline"`
 	metav1.ObjectMeta `"json:metadata,omitempty"`
@@ -168,6 +171,17 @@ type DeviceClaimSpec struct {
 	// +optional
 	AccessMode *DeviceAccessMode `json:"accessMode,omitempty"`
 
+	// Configs contains references to arbitrary vendor device configuration
+	// objects that will be attached to the device allocation.
+	// +optional
+	Configs []DeviceConfigReference `json:"configs,omitempty"`
+
+	// NOTE: Topologies and Requests are here for now because they were
+	// part of the original prototype. However, we probably won't do
+	// anything with topology in 1.31.  Requests are used for per-device
+	// resources, which may or may not be needed in 1.31. So, these remain
+	// here, but we may want to see how far we can get without them.
+
 	// Topologies specifies topological alignment constraints and
 	// preferences for the allocated resources. These constraints
 	// apply across the resources within the set of devices.
@@ -175,14 +189,9 @@ type DeviceClaimSpec struct {
 	Topologies []TopologyConstraint `json:"topologies,omitempty"`
 
 	// Requests specifies the individual allocations needed
-	// from the capacities provided by the device
+	// from the resources provided by the device.
 	// +optional
 	Requests []CapacityRequest `json:"requests,omitempty"`
-
-	// Configs contains references to arbitrary vendor device configuration
-	// objects that will be attached to the device allocation.
-	// +optional
-	Configs []DeviceConfigReference `json:"configs,omitempty"`
 }
 
 // DeviceClaimStatus contains the results of the claim allocation.
@@ -208,18 +217,18 @@ type DeviceClaimStatus struct {
 	PodNames []string
 }
 
-// DevicePrivilegedClaim is used to specify a special kind of privileged
-// claim for a set of devices on a node. This type of claim is used for
-// monitoring or other management services for a device. It ignores all
-// ordinary claims to the device with respect to access modes and any
-// resource allocations. As a separate type, it can be RBAC'd separately,
-// as well.
+// DevicePrivilegedClaim is used to specify a special kind of privileged claim
+// for a set of devices on a node. This type of claim is used for monitoring or
+// other management services for a device. It ignores all ordinary claims to
+// the device with respect to access modes and any resource allocations. As a
+// separate type, it can (and is expected to) have separate RBAC constraints.
 //
-// It does not have all the sophisticated selection mechanisms of an
-// ordinary device claim, as the most common use case is simply to access
-// all devices managed by a given driver on a given node. It does allow
-// some flexibility though, allowing specification of Constraints and
-// Config.
+// It does not have all the sophisticated selection mechanisms of an ordinary
+// device claim, as the most common use case is simply to access all devices
+// managed by a given driver on a given node. It intentionally does not require
+// a class, though it does allow some flexibility with the specification of
+// Constraints and Configs.
+
 type DevicePrivilegedClaim struct {
 	metav1.TypeMeta   `"json:,inline"`
 	metav1.ObjectMeta `"json:metadata,omitempty"`
@@ -265,6 +274,9 @@ type DevicePrivilegedClaimStatus struct {
 	PodNames []string
 }
 
+// DeviceClassConfigReference is used to refer to arbitrary configuration
+// objects from the class. Since it is the class, and therefore is created by
+// the administrator, it allows referencing objects in any namespace.
 type DeviceClassConfigReference struct {
 	// API version of the referent.
 	// +required
@@ -283,6 +295,9 @@ type DeviceClassConfigReference struct {
 	Name string `json:"name"`
 }
 
+// DeviceConfigReference is used to refer to arbitrary configuration object
+// from the claim. Since it is created by the end user, the referenced objects
+// are restricted to the same namespace as the DeviceClaim.
 type DeviceConfigReference struct {
 	// API version of the referent.
 	// +required
@@ -297,7 +312,13 @@ type DeviceConfigReference struct {
 	Name string `json:"name"`
 }
 
+// DeviceAccessMode represents access modes for a device, such as shared or
+// exclusive mode.
 type DeviceAccessMode string
+
+// NOTE: The types below are internal and may be phased out soon. They are from
+// the prior version of the prototype and I haven't decided what to do with
+// them yet.
 
 type PodCapacityClaim struct {
 	// PodClaim contains the device claims needed for the pod
