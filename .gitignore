@@ -8,7 +8,7 @@
 *.so
 *.dylib
 cmd/schedule/schedule
-mock-apiserver
+cmd/mock-apiserver/mock-apiserver
 
 # Test binary, built with `go test -c`
 *.test

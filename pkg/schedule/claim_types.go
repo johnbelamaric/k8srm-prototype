@@ -197,12 +197,70 @@ type DeviceClaimSpec struct {
 	Configs []DeviceConfigReference `json:"configs,omitempty"`
 }
 
+// DeviceClaimStatus contains the results of the claim allocation.
 type DeviceClaimStatus struct {
 	// ClassConfigs contains the entire set of dereferenced vendor
 	// configurations from the DeviceClass, as of the time of allocation.
 	// +optional
 	ClassConfigs []runtime.RawExtension
 
+	// ClaimConfigs contains the entire set of dereferenced vendor
+	// configurations from the DeviceClaim, as of the time of allocation.
+	// +optional
+	ClaimConfigs []runtime.RawExtension
+
+	// Allocation contains the selected devices, along with
+	// their resource allocations and topology assignment.
+	// +optional
+	Allocation *DeviceResult `json:"allocation,omitempty"`
+
+	// PodNames contains the names of all Pods using this claim.
+	// TODO: Can we just use ownerRefs instead?
+	// +optional
+	PodNames []string
+}
+
+// DevicePrivilegedClaim is used to specify a special kind of privileged
+// claim for a set of devices on a node. This type of claim is used for
+// monitoring or other management services for a device. It ignores all
+// ordinary claims to the device with respect to access modes and any
+// resource allocations. As a separate type, it can be RBAC'd separately,
+// as well.
+//
+// It does not have all the sophisticated selection mechanisms of an
+// ordinary device claim, as the most common use case is simply to access
+// all devices managed by a given driver on a given node. It does allow
+// some flexibility though, allowing specification of Constraints and
+// Config.
+type DevicePrivilegedClaim struct {
+	metav1.TypeMeta   `"json:,inline"`
+	metav1.ObjectMeta `"json:metadata,omitempty"`
+
+	Spec   DevicePrivilegedClaimSpec   `"json:spec,omitempty"`
+	Status DevicePrivilegedClaimStatus `"json:status,omitempty"`
+}
+
+// DevicePrivilegedClaimSpec contains the details of the privileged claim.
+type DevicePrivilegedClaimSpec struct {
+	// Driver will limit the scope of devices considered to only those
+	// published by the specified driver.
+	// +required
+	Driver string `json:"driver,omitempty"`
+
+	// Constraints is a CEL expression that operates on device attributes.
+	// Only devices matching this constraint will be selected by this
+	// claim.
+	// +optional
+	Constraints *string `json:"constraints,omitempty"`
+
+	// Configs contains references to arbitrary vendor device configuration
+	// objects that will be attached to the device allocation.
+	// +optional
+	Configs []DeviceConfigReference `json:"configs,omitempty"`
+}
+
+// DevicePrivilegedClaimStatus contains the results of the claim allocation.
+type DevicePrivilegedClaimStatus struct {
 	// ClaimConfigs contains the entire set of dereferenced vendor
 	// configurations from the DeviceClaim, as of the time of allocation.
 	// +optional
