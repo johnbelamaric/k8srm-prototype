@@ -1,7 +1,6 @@
 package schedule
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -26,7 +25,7 @@ type DeviceDriver struct {
 	// claim.
 	//
 	// +required
-	DeviceTypes []string
+	DeviceTypes []string `json:"deviceTypes,omitempty"`
 }
 
 // DeviceClass is a vendor or admin-provided resource that contains
@@ -165,28 +164,19 @@ type DeviceClaimSpec struct {
 	// +optional
 	AttributeMatches []string `json:"attributeMatches,omitempty"`
 
-	// AccessMode defines whether this claim requires exclusive access or can
-	// allow shared access. If not specified, then the value from the class
-	// will be used. If neither is specified, exclusive access is the default.
-	// +optional
-	AccessMode *DeviceAccessMode `json:"accessMode,omitempty"`
-
 	// Configs contains references to arbitrary vendor device configuration
 	// objects that will be attached to the device allocation.
 	// +optional
 	Configs []DeviceConfigReference `json:"configs,omitempty"`
 
-	// NOTE: Topologies and Requests are here for now because they were
-	// part of the original prototype. However, we probably won't do
-	// anything with topology in 1.31.  Requests are used for per-device
-	// resources, which may or may not be needed in 1.31. So, these remain
-	// here, but we may want to see how far we can get without them.
+	// Fields below here are only relevant for drivers that publish individual
+	// device entries.
 
-	// Topologies specifies topological alignment constraints and
-	// preferences for the allocated resources. These constraints
-	// apply across the resources within the set of devices.
+	// AccessMode defines whether this claim requires exclusive access or can
+	// allow shared access. If not specified, then the value from the class
+	// will be used. If neither is specified, exclusive access is the default.
 	// +optional
-	Topologies []TopologyConstraint `json:"topologies,omitempty"`
+	AccessMode *DeviceAccessMode `json:"accessMode,omitempty"`
 
 	// Requests specifies the individual allocations needed
 	// from the resources provided by the device.
@@ -199,22 +189,24 @@ type DeviceClaimStatus struct {
 	// ClassConfigs contains the entire set of dereferenced vendor
 	// configurations from the DeviceClass, as of the time of allocation.
 	// +optional
-	ClassConfigs []runtime.RawExtension
+	ClassConfigs []runtime.RawExtension `json:"classConfigs,omitempty"`
 
 	// ClaimConfigs contains the entire set of dereferenced vendor
 	// configurations from the DeviceClaim, as of the time of allocation.
 	// +optional
-	ClaimConfigs []runtime.RawExtension
+	ClaimConfigs []runtime.RawExtension `json:"claimConfigs,omitempty"`
 
-	// Allocation contains the selected devices, along with
-	// their resource allocations and topology assignment.
+	// Allocations contains the list of device allocations needed to
+	// satisfy the claim, one per pool from which devices were allocated.
+	// In the case of specific device allocations, it will also contain the
+	// device names and per-device resource allocations.
 	// +optional
-	Allocation *DeviceResult `json:"allocation,omitempty"`
+	Allocations []DevicePoolAllocation `json:"allocations,omitempty"`
 
 	// PodNames contains the names of all Pods using this claim.
 	// TODO: Can we just use ownerRefs instead?
 	// +optional
-	PodNames []string
+	PodNames []string `json:"podNames,omitempty"`
 }
 
 // DevicePrivilegedClaim is used to specify a special kind of privileged claim
@@ -261,17 +253,19 @@ type DevicePrivilegedClaimStatus struct {
 	// ClaimConfigs contains the entire set of dereferenced vendor
 	// configurations from the DeviceClaim, as of the time of allocation.
 	// +optional
-	ClaimConfigs []runtime.RawExtension
+	ClaimConfigs []runtime.RawExtension `json:"claimConfigs,omitempty"`
 
-	// Allocation contains the selected devices, along with
-	// their resource allocations and topology assignment.
+	// Allocations contains the list of device allocations needed to
+	// satisfy the claim, one per pool from which devices were allocated.
+	// In the case of specific device allocations, it will also contain the
+	// device names and per-device resource allocations.
 	// +optional
-	Allocation *DeviceResult `json:"allocation,omitempty"`
+	Allocations []DevicePoolAllocation `json:"allocations,omitempty"`
 
 	// PodNames contains the names of all Pods using this claim.
 	// TODO: Can we just use ownerRefs instead?
 	// +optional
-	PodNames []string
+	PodNames []string `json:"podNames,omitempty"`
 }
 
 // DeviceClassConfigReference is used to refer to arbitrary configuration
@@ -312,98 +306,28 @@ type DeviceConfigReference struct {
 	Name string `json:"name"`
 }
 
-// DeviceAccessMode represents access modes for a device, such as shared or
-// exclusive mode.
-type DeviceAccessMode string
+// DevicePoolAllocation contains the pool and number of selected devices. In
+// the case of specific device allocations, it will also contain the device
+// names and per-device resource allocations.
+type DevicePoolAllocation struct {
 
-// NOTE: The types below are internal and may be phased out soon. They are from
-// the prior version of the prototype and I haven't decided what to do with
-// them yet.
-
-type PodCapacityClaim struct {
-	// PodClaim contains the device claims needed for the pod
-	// level, such as the pod capacity needed to run pods,
-	// or devices that may be attached to a container later
+	// DevicePoolName contains the name of the DevicePool for this
+	// allocation.
 	// +required
-	PodClaim CapacityClaim `json:"podClaim"`
+	DevicePoolName string `json:"devicePoolName,omitempty"`
 
-	// ContainerClaims contains the device claims needed on a
-	// per-container level, such as CPU and memory
+	// DeviceCount contains the number of devices allocated from the
+	// pool to satisfy this claim.
 	// +required
-	ContainerClaims []CapacityClaim `json:"containerClaims"`
+	DeviceCount int `json:"count,omitempty"`
 
-	// Topologies specifies the topological alignment and preferences
-	// across all containers and devices in the pod
+	// Allocations contains the individual devices allocated to satisfy
+	// this claim, for pools that include specific devices. When
+	// applicable, this includes the per-device resource allocations as
+	// well. If used, len(Devices) must equal DeviceCount.
 	// +optional
-	Topologies []TopologyConstraint `json:"topologies,omitempty"`
+	Allocations []DeviceAllocation `json:"allocations,omitempty"`
 }
 
-type CapacityClaim struct {
-	// Name is used to identify the capacity claim to help in troubleshooting
-	// unschedulable claims.
-	// +required
-	Name string `json:"name"`
-
-	// Claims contains the set of device claims that are part of
-	// this capacity claim
-	// +required
-	Claims []DeviceClaim `json:"claims"`
-
-	// Topologies specifies the topological alignment and preferences
-	// across all devices in this capacity claim
-	// +optional
-	Topologies []TopologyConstraint `json:"topologies,omitempty"`
-}
-
-type TopologyConstraint struct {
-	// Type identifies the type of topology to constrain
-	// +required
-	Type string `json:"type"`
-
-	// Policy defines the specific constraint. All types support 'prefer'
-	// and 'require', with 'prefer' being the default. 'Prefer' means
-	// that allocations will be made according to the topology when
-	// possible, but the allocation will not fail if the constraint cannot
-	// be met. 'Require' will fail the allocation if the constraint is not
-	// met. Types may add additional policies.
-	// +optional
-	Policy string `json:"policy,omitempty"`
-}
-
-type CapacityRequest struct {
-	// +required
-	Resource string `json:"resource"`
-
-	// one of these must be populated
-	// note that we only need three different type of capacity requests
-	// even though we have four different types of capacity models
-	// the ResourceQuantity and ResourceBlock capacity models both
-	// are drawn down on via the ResourceQuantityRequest type
-	Counter    *ResourceCounterRequest    `json:"counter,omitempty"`
-	Quantity   *ResourceQuantityRequest   `json:"quantity,omitempty"`
-	AccessMode *ResourceAccessModeRequest `json:"accessMode,omitempty"`
-}
-
-type ResourceCounterRequest struct {
-	// +required
-	Request int64 `json:"request"`
-}
-
-type ResourceQuantityRequest struct {
-	// +required
-	Request resource.Quantity `json:"request"`
-}
-
-type CapacityAccessMode string
-
-const (
-	ReadOnlyShared     = "ReadOnlyShared"
-	ReadWriteShared    = "ReadWriteShared"
-	WriteExclusive     = "WriteExclusive"
-	ReadWriteExclusive = "ReadWriteExclusive"
-)
-
-type ResourceAccessModeRequest struct {
-	// +required
-	Request CapacityAccessMode `json:"request"`
-}
+// For clarity, types related to supporting individual devices are in
+// device_types.go.
