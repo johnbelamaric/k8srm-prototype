@@ -1,4 +1,4 @@
-package schedule
+package api
 
 import (
 	"k8s.io/apimachinery/pkg/api/resource"

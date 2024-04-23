@@ -134,7 +134,7 @@ Types are divided into "claim" types, which form the UX, "capacity" types which
 are populated by drivers, and "allocation types" which are used to capture the
 results of scheduling.
 
-Claim types are found in [claim_types.go](pkg/schedule/claim_types.go);
+Claim types are found in [claim_types.go](pkg/api/claim_types.go);
 individual types and fields are described in detail there in the comments.
 
 When making a claim for a device (or set of devices), the user may either

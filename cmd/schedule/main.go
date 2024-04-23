@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/johnbelamaric/k8srm-prototype/pkg/schedule"
+	"github.com/johnbelamaric/k8srm-prototype/pkg/api"
+	"github.com/johnbelamaric/k8srm-prototype/pkg/gen"
 
 	"sigs.k8s.io/yaml"
 )
@@ -27,17 +28,17 @@ func usage() {
 }
 
 func genCapacityExample(shape string) {
-	var pools []schedule.DevicePool
+	var pools []api.DevicePool
 
 	switch shape {
 	case "0":
-		pools = schedule.GenShapeZero(4)
+		pools = gen.GenShapeZero(4)
 	case "1":
-		pools = schedule.GenShapeOne(4)
+		pools = gen.GenShapeOne(4)
 	case "2":
-		pools = schedule.GenShapeTwo(4)
+		pools = gen.GenShapeTwo(4)
 	case "3":
-		pools = schedule.GenShapeThree(4)
+		pools = gen.GenShapeThree(4)
 	default:
 		fmt.Printf("unknown shape %q\n", shape)
 	}

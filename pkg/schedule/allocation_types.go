@@ -1,5 +1,9 @@
 package schedule
 
+import (
+	"github.com/johnbelamaric/k8srm-prototype/pkg/api"
+)
+
 // This prototype demonstrates allocating capacity from nodes,
 // adhering to the claim constraints and requests.
 // Currently, allocations are for a pod, and on a single node. However,
@@ -63,7 +67,7 @@ type CapacityResult struct {
 	// If successful, CapacityRequest contains the allocated amount (which may
 	// be different than the original, requested amount. If unsuccessful, it
 	// contains the original requested amount.
-	CapacityRequest `json:",inline"`
+	api.CapacityRequest `json:",inline"`
 
 	// Topologies contains the topology assignments of the request allocation. Note
 	// that exactly one of each topology type from the original Capacity must be in

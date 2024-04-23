@@ -5,24 +5,25 @@ import (
 	"reflect"
 
 	"github.com/google/cel-go/cel"
+	"github.com/johnbelamaric/k8srm-prototype/pkg/api"
 )
 
 const (
 	DeviceVarName = "device"
 )
 
-func (d *Device) MeetsConstraints(constraints *string, poolAttrs []Attribute) (bool, error) {
+func MeetsConstraints(constraints *string, poolAttrs, deviceAttrs []api.Attribute) (bool, error) {
 	if constraints == nil || *constraints == "" {
 		return true, nil
 	}
 
 	inputs := make(map[string]interface{})
-	inputs[DeviceVarName] = attributesToInputs(append(poolAttrs, d.Attributes...))
+	inputs[DeviceVarName] = attributesToInputs(append(poolAttrs, deviceAttrs...))
 
 	return evalExpr(*constraints, inputs)
 }
 
-func attributesToInputs(attributes []Attribute) map[string]interface{} {
+func attributesToInputs(attributes []api.Attribute) map[string]interface{} {
 	result := make(map[string]interface{}, len(attributes))
 
 	for _, a := range attributes {
