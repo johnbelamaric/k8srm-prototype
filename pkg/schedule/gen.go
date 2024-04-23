@@ -67,7 +67,8 @@ func genCapPrimaryPool(node, os, kernel, hw string, numa ...numaGen) DevicePool 
 			Name: node + "-primary",
 		},
 		Spec: DevicePoolSpec{
-			Driver: "kubelet",
+			NodeName: &node,
+			Driver:   "kubelet",
 			Attributes: []Attribute{
 				{Name: "os", StringValue: &os},
 				{Name: "kernel-release", SemVerValue: ptr(SemVer(kernel))},
@@ -169,6 +170,7 @@ func GenCapShapeOne(num int) []NodeDevices {
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-one-%03d", i)
 		pool.Name = node + "-foozer"
+		pool.Spec.NodeName = &node
 		pool.Spec.Devices = genCapFoozerDevices(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-one-%03d", i), "64Gi", "8", 16)
 
 		nrs = append(nrs, NodeDevices{
@@ -204,6 +206,7 @@ func GenCapShapeTwo(num, nets int) []NodeDevices {
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-two-%03d", i)
 		pool.Name = node + "-foozer"
+		pool.Spec.NodeName = &node
 		pool.Spec.Devices = genCapFoozerDevices(0, 8, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-two-%02d", i%nets), "256Gi", "16", 64)
 
 		nrs = append(nrs, NodeDevices{
@@ -238,8 +241,10 @@ func GenCapShapeThree(num, nets int) []NodeDevices {
 	for i := 0; i < num; i++ {
 		node := fmt.Sprintf("shape-three-%03d", i)
 		pool1.Name = node + "-foozer-1000"
+		pool1.Spec.NodeName = &node
 		pool1.Spec.Devices = genCapFoozerDevices(0, 4, "foozer-1000", "1.3.8", "10G", fmt.Sprintf("foonet-three-%03d", i), "64Gi", "8", 16)
 		pool2.Name = node + "-foozer-4000"
+		pool2.Spec.NodeName = &node
 		pool2.Spec.Devices = genCapFoozerDevices(4, 4, "foozer-4000", "1.8.8", "40G", fmt.Sprintf("foonet-three-%02d", i%nets), "256Gi", "16", 64)
 
 		nrs = append(nrs, NodeDevices{

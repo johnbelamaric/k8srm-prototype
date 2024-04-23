@@ -38,10 +38,15 @@ type DevicePool struct {
 // NOTE: It's not clear that spec/status is the right model for this data.
 type DevicePoolSpec struct {
 
+	// NodeName is the name of the node containing the devices in the pool.
+	// For network attached devices, this may be empty.
+	// +optional
+	NodeName *string `json:"nodeName,omitempty"`
+
 	// Driver is the name of the DeviceDriver that created this object and
 	// owns the data in it.
 	// +required
-	Driver string `json:"driver"`
+	Driver string `json:"driver,omitempty"`
 
 	// Attributes contains device attributes that are common to all devices
 	// in the pool.
