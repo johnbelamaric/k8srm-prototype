@@ -38,6 +38,17 @@ type DevicePoolSpec struct {
 	// +optional
 	Attributes []Attribute `json:"attributes,omitempty"`
 
+	// NOTE: DeviceCount and Devices are where we might start to think of
+	// different "models" in the same sense we have in 1.30 DRA. That is,
+	// DeviceCount is a model where we have a group of identical devices
+	// and we do not need to track individual assignments. Devices is a
+	// model where we track individual devices and can allocate per-device
+	// resources from them (sharing individual devices across consumers).
+	// Right now, this is written as the "Devices model" being sort of
+	// refinement to the "DeviceCount model", but we could make them more
+	// explicitly "different models". This may be necessary to support a
+	// "partitionable devices model".
+
 	// DeviceCount contains the total number of devices in the pool.
 	// +required
 	DeviceCount int `json:"count,omitempty"`
