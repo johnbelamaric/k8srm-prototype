@@ -11,7 +11,7 @@ const (
 
 // This prototype models nodes as a collection of device
 // pools, each populated by devices, which in turn hold
-// capacities.
+// resources.
 //
 
 // NOTE: probably obsolete, leaving for now
@@ -78,7 +78,7 @@ type Device struct {
 	Attributes []Attribute `json:"attributes,omitempty"`
 
 	// resources that can be allocated
-	Resources []ResourceCapacity `json:"capacities,omitempty"`
+	Resources []ResourceCapacity `json:"resources,omitempty"`
 }
 
 type ResourceCapacity struct {
@@ -133,7 +133,7 @@ type Topology struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
 
-	// GroupInDevice allows a claim to be satisfied by capacities from
+	// GroupInDevice allows a claim to be satisfied by resources from
 	// different topologies, but in the same device.
 	GroupInDevice bool `json:"groupInDevice"`
 }
