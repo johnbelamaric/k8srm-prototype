@@ -9,23 +9,9 @@ const (
 	DevMgmtAPIVersion = "devmgmtproto.k8s.io/v1alpha1"
 )
 
-// This prototype models nodes as a collection of device
-// pools, each populated by devices, which in turn hold
-// resources.
-//
-
-// NOTE: probably obsolete, leaving for now
-type NodeDevices struct {
-	Name string `json:"name"`
-
-	Pools []DevicePool `json:"pools"`
-}
-
 // DevicePool represents a collection of devices managed by a given driver. How
 // devices are divided into pools is driver-specific, but typically the
 // expectation would a be a pool per identical collection of devices, per node.
-//
-
 type DevicePool struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -37,7 +23,6 @@ type DevicePool struct {
 // DevicePoolSpec identifies the driver and contains the details of all devices prior to any allocations.
 // NOTE: It's not clear that spec/status is the right model for this data.
 type DevicePoolSpec struct {
-
 	// NodeName is the name of the node containing the devices in the pool.
 	// For network attached devices, this may be empty.
 	// +optional
@@ -57,10 +42,18 @@ type DevicePoolSpec struct {
 	// +required
 	DeviceCount int `json:"count,omitempty"`
 
-	// Devices contains the individual devices in the pool. This is only
-	// needed if devices have additional attributes beyond what the pool
-	// already identified, or if the driver supports per-device resources.
+	// Devices contains the individual devices in the pool. Some features
+	// require tracking specific devices, in which case this should be
+	// populated. Populating individual devices is required for these
+	// features:
+	// - Access modes (shared vs exclusive). Drivers can implement some
+	//   sharing between pods without listing individual devices, if the
+	//   drivers themselves maintain a local mapping of claim to devices.
+	// - Non-homogenous devices in a pool
+	// - Per-device resources
+	//
 	// If used, len(Devices) must equal DeviceCount.
+	//
 	// +optional
 	Devices []Device `json:"devices,omitempty"`
 }
@@ -73,23 +66,49 @@ type DevicePoolStatus struct {
 	AvailableDevices int `json:"availableDevices,omitempty"`
 }
 
-// Device is used to track individual devices in a pool, for drivers that
-// support per-device attributes or resources, or need to otherwise specify
-// specific devices that satisfy a claim.
-type Device struct {
+// Attribute capture the name, value, and type of an device attribute.
+type Attribute struct {
 	Name string `json:"name"`
 
-	// attributes for constraints
+	// One of the following:
+	StringValue   *string            `json:"stringValue,omitempty"`
+	IntValue      *int               `json:"intValue,omitempty"`
+	QuantityValue *resource.Quantity `json:"quantityValue,omitempty"`
+	SemVerValue   *SemVer            `json:"semVerValue,omitempty"`
+}
+
+// SemVer represents a semantic version value. In this prototype it is just a
+// string.
+type SemVer string
+
+// Device is used to track individual devices in a pool, for drivers that
+// support per-device attributes or resources, or need to otherwise specify
+// specific devices that satisfy a claim. NOTE: We may be able to change
+// Attributes here to just some topology information, and normalize Resources
+// up into the pool. That is, the pool would provide a basic shape of the
+// device, and the device list would just provide individual device names. When
+// we make allocations, we would track what allocations are made by device
+// name, and so apply those allocations to the base resource values prior to
+// each scheduling attempt (this can be cached).
+type Device struct {
+	// Name is a driver-specific identifier for the device.
+	// +required
+	Name string `json:"name"`
+
+	// Attributes contain additional metadata that can be used in
+	// constraints. If an attribute name overlaps with the pool attribute,
+	// the device attribute takes precedence.
+	// +optional
 	Attributes []Attribute `json:"attributes,omitempty"`
 
-	// resources that can be allocated
+	// Resources allows the definition of per-device resources that can
+	// be allocated in a manner similar to standard Kubernetes resources.
+	// +optional
 	Resources []ResourceCapacity `json:"resources,omitempty"`
 }
 
 type ResourceCapacity struct {
 	Name string `json:"name"`
-
-	Topologies []Topology `json:"topologies,omitempty"`
 
 	// exactly one of the fields should be populated
 	// examples implemented:
@@ -113,34 +132,6 @@ type ResourceCapacity struct {
 
 	// +optional
 	AccessMode *ResourceAccessMode `json:"accessMode,omitempty"`
-}
-
-type Attribute struct {
-	Name string `json:"name"`
-
-	// One of the following:
-	StringValue   *string            `json:"stringValue,omitempty"`
-	IntValue      *int               `json:"intValue,omitempty"`
-	QuantityValue *resource.Quantity `json:"quantityValue,omitempty"`
-	SemVerValue   *SemVer            `json:"semVerValue,omitempty"`
-}
-
-type SemVer string
-
-// This prototype does not address limitations of actuation. We
-// would need to do that in the real deal. For example, today
-// topology acuation is controlled at the node level, so it is not
-// something we can just arbitrarily assign for any node. Instead,
-// we need to look at the static topology policy of the node, and evaluate
-// if that node assignment can meet the topology constraint in the request
-// based upon that policy.
-type Topology struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
-
-	// GroupInDevice allows a claim to be satisfied by resources from
-	// different topologies, but in the same device.
-	GroupInDevice bool `json:"groupInDevice"`
 }
 
 type ResourceCounter struct {
