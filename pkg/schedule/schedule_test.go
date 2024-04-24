@@ -162,6 +162,8 @@ func TestSelectNode(t *testing.T) {
 			allocations, results := SelectNode(tc.claims, tc.pools)
 			b, _ := yaml.Marshal(allocations)
 			fmt.Println()
+			fmt.Println("=== TEST " + tn)
+			fmt.Println()
 			fmt.Println("ALLOCATIONS")
 			fmt.Println("-----------")
 			fmt.Println(string(b))

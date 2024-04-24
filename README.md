@@ -98,3 +98,108 @@ class or if we can simply refer to a DeviceClaim as if it were a temlate.
 Probably the separate resource type is cleaner. Examples may be found in the
 `testdata` directory in files starting with `pod-`; e.g.,
 [pod-template-foozer-single.yaml](testdata/pod-template-foozer-single.yaml).
+
+## Examples
+
+There are some examples in [schedule_test.go](pkg/schedule/schedule_test.go). If
+you run the schedule test you can also get some output as to what it is doing:
+
+```console
+k8srm-prototype$ cd pkg/schedule/
+schedule$ go test
+
+=== TEST single by driver
+
+ALLOCATIONS
+-----------
+- deviceCount: 1
+  devicePoolName: shape-zero-00-foozer-00
+
+NODE RESULTS
+------------
+shape-three-01: could not satisfy these claims: myclaim
+shape-zero-00: satisfied all claims with score 100
+shape-zero-01: satisfied all claims with score 100
+shape-three-00: could not satisfy these claims: myclaim
+
+=== DONE single by driver
+
+...snipped...
+```
+
+Or for even more details, including all options considered and their various
+scores:
+
+```console
+schedule$ VERBOSE=y go test
+
+=== TEST single by driver
+
+ALLOCATIONS
+-----------
+- deviceCount: 1
+  devicePoolName: shape-zero-00-foozer-00
+
+NODE RESULTS
+------------
+- DeviceClaimResults:
+  - best: -1
+    claimName: myclaim
+    ignoredPools:
+    - deviceCount: 0
+      failureReason: claim and pool driver do not match
+      poolName: shape-three-00-barzer-00
+    - deviceCount: 0
+      failureReason: claim and pool driver do not match
+      poolName: shape-three-00-barzer-01
+    - deviceCount: 0
+      failureReason: claim and pool driver do not match
+      poolName: shape-three-00-barzer-02
+    - deviceCount: 0
+      failureReason: claim and pool driver do not match
+      poolName: shape-three-00-barzer-03
+    poolSetResults: null
+  NodeName: shape-three-00
+- DeviceClaimResults:
+  - best: -1
+    claimName: myclaim
+    ignoredPools:
+    - deviceCount: 0
+      failureReason: claim and pool driver do not match
+      poolName: shape-three-01-barzer-00
+    - deviceCount: 0
+      failureReason: claim and pool driver do not match
+      poolName: shape-three-01-barzer-01
+    - deviceCount: 0
+      failureReason: claim and pool driver do not match
+      poolName: shape-three-01-barzer-02
+    - deviceCount: 0
+      failureReason: claim and pool driver do not match
+      poolName: shape-three-01-barzer-03
+    poolSetResults: null
+  NodeName: shape-three-01
+- DeviceClaimResults:
+  - best: 0
+    claimName: myclaim
+    poolSetResults:
+    - poolResults:
+      - deviceCount: 1
+        poolName: shape-zero-00-foozer-00
+      score: 100
+  NodeName: shape-zero-00
+- DeviceClaimResults:
+  - best: 0
+    claimName: myclaim
+    poolSetResults:
+    - poolResults:
+      - deviceCount: 1
+        poolName: shape-zero-01-foozer-00
+      score: 100
+  NodeName: shape-zero-01
+
+
+=== DONE single by driver
+
+...snipped...
+```
+
