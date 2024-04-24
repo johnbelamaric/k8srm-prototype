@@ -75,6 +75,9 @@ func evaluateNode(node string, claims []api.DeviceClaim, pools []api.DevicePool)
 	for _, c := range claims {
 		dcr := evaluateNodeForClaim(c, pools)
 		nr.DeviceClaimResults = append(nr.DeviceClaimResults, dcr)
+
+		// TODO: apply the allocations to the underlying pools, so that
+		// subsequent, overlapping claims do not double-allocate
 	}
 
 	return nr
@@ -94,7 +97,7 @@ func evaluateNodeForClaim(claim api.DeviceClaim, pools []api.DevicePool) DeviceC
 	// example, we could "flatten" all pools into just a set of devices,
 	// and treat Node as a MatchAttributes field.
 
-	// Pool Based Algorithm Assumptions
+	// Pool-Based Algorithm Assumptions
 	//
 	// A brute force approach would enumerate every permutation of 1 or
 	// more pools, and then score the claim against each. We can do some
@@ -204,7 +207,7 @@ func evaluatePoolSetForClaim(claim api.DeviceClaim, pools []api.DevicePool) Pool
 	psr := PoolSetResult{}
 
 	// TODO: Include both claim and class MatchAttributes
-	var matchAttrs map[string]api.Attribute
+	matchAttrs := make(map[string]api.Attribute)
 
 	for i, p := range pools {
 		pr := PoolResult{

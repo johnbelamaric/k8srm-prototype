@@ -180,6 +180,24 @@ func TestSelectNode(t *testing.T) {
 			pools:         gen.GenFoozerBarzerNodes(2),
 			expectSuccess: true,
 		},
+		"claim cannot be met due to NUMA MatchAttribute": {
+			claims: []api.DeviceClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "myclaim",
+						Namespace: "default",
+					},
+					Spec: api.DeviceClaimSpec{
+						DeviceClass:     "not implemented yet",
+						Driver:          ptr("example.com-foozer"),
+						MinDeviceCount:  ptr(4),
+						MatchAttributes: []string{"numa"},
+					},
+				},
+			},
+			pools:         gen.GenShapeOne(2),
+			expectSuccess: false,
+		},
 	}
 
 	for tn, tc := range testCases {
