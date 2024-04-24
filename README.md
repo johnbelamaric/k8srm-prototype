@@ -11,74 +11,13 @@ Just run `make`, it will build everything.
 ```console
 k8srm-prototype$ make
 gofmt -s -w .
-go test -v ./...
+go test ./...
 ?   	github.com/johnbelamaric/k8srm-prototype/cmd/mock-apiserver	[no test files]
 ?   	github.com/johnbelamaric/k8srm-prototype/cmd/schedule	[no test files]
-=== RUN   TestMeetsConstraints
-=== RUN   TestMeetsConstraints/simple_device_constraint_met
-=== RUN   TestMeetsConstraints/simple_device_constraint_failed
-=== RUN   TestMeetsConstraints/simple_device_and_pool_constraint_met
-=== RUN   TestMeetsConstraints/simple_device_and_pool_constraint_failed
-=== RUN   TestMeetsConstraints/quantity_constraint_met
-=== RUN   TestMeetsConstraints/nil_constraint
-=== RUN   TestMeetsConstraints/empty_constraint
---- PASS: TestMeetsConstraints (0.00s)
-    --- PASS: TestMeetsConstraints/simple_device_constraint_met (0.00s)
-    --- PASS: TestMeetsConstraints/simple_device_constraint_failed (0.00s)
-    --- PASS: TestMeetsConstraints/simple_device_and_pool_constraint_met (0.00s)
-    --- PASS: TestMeetsConstraints/simple_device_and_pool_constraint_failed (0.00s)
-    --- PASS: TestMeetsConstraints/quantity_constraint_met (0.00s)
-    --- PASS: TestMeetsConstraints/nil_constraint (0.00s)
-    --- PASS: TestMeetsConstraints/empty_constraint (0.00s)
-=== RUN   TestCapacityReduce
-=== RUN   TestCapacityReduce/counter
-=== RUN   TestCapacityReduce/quantity
-=== RUN   TestCapacityReduce/block
-=== RUN   TestCapacityReduce/accessMode-readonlyshared
-=== RUN   TestCapacityReduce/accessMode-readwriteshared
---- PASS: TestCapacityReduce (0.00s)
-    --- PASS: TestCapacityReduce/counter (0.00s)
-    --- PASS: TestCapacityReduce/quantity (0.00s)
-    --- PASS: TestCapacityReduce/block (0.00s)
-    --- PASS: TestCapacityReduce/accessMode-readonlyshared (0.00s)
-    --- PASS: TestCapacityReduce/accessMode-readwriteshared (0.00s)
-=== RUN   TestDeviceReduceCapacity
-=== RUN   TestDeviceReduceCapacity/multiple_capacities,_multiple_allocations
-=== RUN   TestDeviceReduceCapacity/single_capacity_with_single_topology
-=== RUN   TestDeviceReduceCapacity/single_capacity,_single_topology_type,_multiple_topologies
-=== RUN   TestDeviceReduceCapacity/missing_capacity_topology_for_allocation
-=== RUN   TestDeviceReduceCapacity/single_quantity
-=== RUN   TestDeviceReduceCapacity/multiple_capacities,_one_allocation
-=== RUN   TestDeviceReduceCapacity/missing_capacity_name_for_allocation
-=== RUN   TestDeviceReduceCapacity/single_counter
-=== RUN   TestDeviceReduceCapacity/single_block
---- PASS: TestDeviceReduceCapacity (0.00s)
-    --- PASS: TestDeviceReduceCapacity/multiple_capacities,_multiple_allocations (0.00s)
-    --- PASS: TestDeviceReduceCapacity/single_capacity_with_single_topology (0.00s)
-    --- PASS: TestDeviceReduceCapacity/single_capacity,_single_topology_type,_multiple_topologies (0.00s)
-    --- PASS: TestDeviceReduceCapacity/missing_capacity_topology_for_allocation (0.00s)
-    --- PASS: TestDeviceReduceCapacity/single_quantity (0.00s)
-    --- PASS: TestDeviceReduceCapacity/multiple_capacities,_one_allocation (0.00s)
-    --- PASS: TestDeviceReduceCapacity/missing_capacity_name_for_allocation (0.00s)
-    --- PASS: TestDeviceReduceCapacity/single_counter (0.00s)
-    --- PASS: TestDeviceReduceCapacity/single_block (0.00s)
-=== RUN   TestPoolReduceCapacity
-=== RUN   TestPoolReduceCapacity/single_allocation
---- PASS: TestPoolReduceCapacity (0.00s)
-    --- PASS: TestPoolReduceCapacity/single_allocation (0.00s)
-=== RUN   TestSchedulePodForFoozer
-=== RUN   TestSchedulePodForFoozer/single_pod,_container,_cpu/mem,_and_foozer
-=== RUN   TestSchedulePodForFoozer/no_foozer_big_enough
---- PASS: TestSchedulePodForFoozer (0.00s)
-    --- PASS: TestSchedulePodForFoozer/single_pod,_container,_cpu/mem,_and_foozer (0.00s)
-    --- PASS: TestSchedulePodForFoozer/no_foozer_big_enough (0.00s)
-=== RUN   TestSchedulePodForBigFoozer
-=== RUN   TestSchedulePodForBigFoozer/single_pod,_container,_cpu/mem,_and_foozer
-=== RUN   TestSchedulePodForBigFoozer/no_foozer_big_enough
---- PASS: TestSchedulePodForBigFoozer (0.00s)
-    --- PASS: TestSchedulePodForBigFoozer/single_pod,_container,_cpu/mem,_and_foozer (0.00s)
-    --- PASS: TestSchedulePodForBigFoozer/no_foozer_big_enough (0.00s)
-PASS
+?   	github.com/johnbelamaric/k8srm-prototype/pkg/api	[no test files]
+?   	github.com/johnbelamaric/k8srm-prototype/pkg/gen	[no test files]
+?   	github.com/johnbelamaric/k8srm-prototype/pkg/old/sched-cli	[no test files]
+ok  	github.com/johnbelamaric/k8srm-prototype/pkg/old/schedule	(cached)
 ok  	github.com/johnbelamaric/k8srm-prototype/pkg/schedule	(cached)
 cd cmd/schedule && go build
 cd cmd/mock-apiserver && go build
