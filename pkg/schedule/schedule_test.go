@@ -10,7 +10,7 @@ import (
 	"github.com/johnbelamaric/k8srm-prototype/pkg/gen"
 	"github.com/stretchr/testify/require"
 
-        metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/yaml"
 )
@@ -37,24 +37,58 @@ func dumpTestClaims(tn string, claims []api.DeviceClaim) {
 
 func TestSelectNode(t *testing.T) {
 	testCases := map[string]struct {
-		claims         []api.DeviceClaim
-		pools []api.DevicePool
+		claims        []api.DeviceClaim
+		pools         []api.DevicePool
 		expectSuccess bool
 	}{
 		"single-by-driver": {
 			claims: []api.DeviceClaim{
-				api.DeviceClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "myclaim",
-					Namespace: "default",
-				},
-				Spec: api.DeviceClaimSpec{
-					DeviceClass: "not-implemented-yet",
-					Driver: ptr("example.com-foozer"),
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "myclaim",
+						Namespace: "default",
+					},
+					Spec: api.DeviceClaimSpec{
+						DeviceClass: "not-implemented-yet",
+						Driver:      ptr("example.com-foozer"),
+					},
 				},
 			},
+			pools:         gen.GenShapeZero(2),
+			expectSuccess: true,
+		},
+		"multiple-single-pool": {
+			claims: []api.DeviceClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "myclaim",
+						Namespace: "default",
+					},
+					Spec: api.DeviceClaimSpec{
+						DeviceClass:    "not-implemented-yet",
+						Driver:         ptr("example.com-foozer"),
+						MinDeviceCount: ptr(2),
+					},
+				},
 			},
-			pools: gen.GenShapeZero(4),
+			pools:         gen.GenShapeZero(2),
+			expectSuccess: true,
+		},
+		"split-across-pools": {
+			claims: []api.DeviceClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "myclaim",
+						Namespace: "default",
+					},
+					Spec: api.DeviceClaimSpec{
+						DeviceClass:    "not-implemented-yet",
+						Driver:         ptr("example.com-foozer"),
+						MinDeviceCount: ptr(4),
+					},
+				},
+			},
+			pools:         gen.GenShapeOne(2),
 			expectSuccess: true,
 		},
 	}
@@ -63,12 +97,15 @@ func TestSelectNode(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			dumpTestClaims(tn, tc.claims)
 			allocations, results := SelectNode(tc.claims, tc.pools)
-			fmt.Println("allocations = ", allocations)
-			for _, nr := range results {
-				fmt.Println(nr.Summary())
-			}
+			b, _ := yaml.Marshal(allocations)
+			fmt.Println("ALLOCATIONS")
+			fmt.Println("-----------")
+			fmt.Println(string(b))
+			fmt.Println("NODE RESULTS")
+			fmt.Println("------------")
+			b, _ = yaml.Marshal(results)
+			fmt.Println(string(b))
 			require.Equal(t, tc.expectSuccess, allocations != nil)
 		})
 	}
 }
-

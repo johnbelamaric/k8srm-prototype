@@ -319,7 +319,7 @@ type DevicePoolAllocation struct {
 	// DeviceCount contains the number of devices allocated from the
 	// pool to satisfy this claim.
 	// +required
-	DeviceCount int `json:"count,omitempty"`
+	DeviceCount int `json:"deviceCount,omitempty"`
 
 	// Allocations contains the individual devices allocated to satisfy
 	// this claim, for pools that include specific devices. When

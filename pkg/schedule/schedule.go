@@ -51,6 +51,10 @@ func SelectNode(claims []api.DeviceClaim, pools []api.DevicePool) ([]api.DeviceP
 		}
 	}
 
+	if best == -1 {
+		return nil, results
+	}
+
 	return results[best].Allocations(), results
 }
 
@@ -117,6 +121,15 @@ func evaluateNodeForClaim(claim api.DeviceClaim, pools []api.DevicePool) DeviceC
 			})
 			continue
 		}
+
+		if claim.Spec.Driver != nil && *claim.Spec.Driver != p.Spec.Driver {
+			dcr.IgnoredPools = append(dcr.IgnoredPools, PoolResult{
+				PoolName:      p.Name,
+				FailureReason: "claim and pool driver do not match",
+			})
+			continue
+		}
+
 		// TODO: Consider *class* contraints
 		meets, err := MeetsConstraints(claim.Spec.Constraints, p.Spec.Attributes, nil)
 		if err != nil {
@@ -186,6 +199,8 @@ func evaluatePoolSetForClaim(claim api.DeviceClaim, pools []api.DevicePool) Pool
 		required = *claim.Spec.MinDeviceCount
 	}
 
+	origRequired := required
+
 	psr := PoolSetResult{}
 
 	// TODO: Include both claim and class MatchAttributes
@@ -228,7 +243,7 @@ func evaluatePoolSetForClaim(claim api.DeviceClaim, pools []api.DevicePool) Pool
 
 	if required > 0 {
 		psr.Score = 0
-		psr.FailureReason = fmt.Sprintf("unable to satisfy %d of %d device requests", required, claim.Spec.MinDeviceCount)
+		psr.FailureReason = fmt.Sprintf("unable to satisfy %d of %d device requests", required, origRequired)
 	} else {
 		psr.Score = 100
 	}

@@ -47,17 +47,17 @@ func genSimplePools(num, numa, count int, nodeBase, poolBase, vendor, driver, mo
 }
 
 func GenShapeZero(num int) []api.DevicePool {
-	return genSimplePools(num, 1, 2, "shape-zero", "foozer", "example.com", "example.com/foozer", "foozer-1000", "4.2.1-gen3", "1.8.2")
+	return genSimplePools(num, 1, 2, "shape-zero", "foozer", "example.com", "example.com-foozer", "foozer-1000", "4.2.1-gen3", "1.8.2")
 }
 
 func GenShapeOne(num int) []api.DevicePool {
-	return genSimplePools(num, 2, 2, "shape-one", "foozer", "example.com", "example.com/foozer", "foozer-1000", "4.2.1-gen3", "1.8.2")
+	return genSimplePools(num, 2, 2, "shape-one", "foozer", "example.com", "example.com-foozer", "foozer-1000", "4.2.1-gen3", "1.8.2")
 }
 
 func GenShapeTwo(num int) []api.DevicePool {
-	return genSimplePools(num, 4, 4, "shape-two", "foozer", "example.com", "example.com/foozer", "foozer-4000", "4.2.1-gen7", "1.8.2")
+	return genSimplePools(num, 4, 4, "shape-two", "foozer", "example.com", "example.com-foozer", "foozer-4000", "4.2.1-gen7", "1.8.2")
 }
 
 func GenShapeThree(num int) []api.DevicePool {
-	return genSimplePools(num, 4, 4, "shape-three", "barzer", "example.com", "example.com/barzer", "barzer-1000", "1.1.1", "1.8.2")
+	return genSimplePools(num, 4, 4, "shape-three", "barzer", "example.com", "example.com-barzer", "barzer-1000", "1.1.1", "1.8.2")
 }
