@@ -152,6 +152,34 @@ func TestSelectNode(t *testing.T) {
 			pools:         mixedPools,
 			expectSuccess: false,
 		},
+		"two claims satisfiable by a single node": {
+			claims: []api.DeviceClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foozer-claim",
+						Namespace: "default",
+					},
+					Spec: api.DeviceClaimSpec{
+						DeviceClass:    "not implemented yet",
+						Driver:         ptr("example.com-foozer"),
+						MinDeviceCount: ptr(2),
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "barzer-claim",
+						Namespace: "default",
+					},
+					Spec: api.DeviceClaimSpec{
+						DeviceClass:    "not implemented yet",
+						Driver:         ptr("example.com-barzer"),
+						MinDeviceCount: ptr(2),
+					},
+				},
+			},
+			pools:         gen.GenFoozerBarzerNodes(2),
+			expectSuccess: true,
+		},
 	}
 
 	for tn, tc := range testCases {

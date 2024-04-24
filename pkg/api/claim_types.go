@@ -200,6 +200,14 @@ type DeviceClaimStatus struct {
 	// satisfy the claim, one per pool from which devices were allocated.
 	// In the case of specific device allocations, it will also contain the
 	// device names and per-device resource allocations.
+	//
+	// Note that the "current capacity" of the cluster is the result of
+	// applying all such allocations to the published DevicePools. This
+	// means storing these allocations only in claim status fields is likely
+	// to scale poorly, and we will need a different strategy in the real
+	// code. For example, we may need to accumulate these in the DevicePool
+	// status fields themselves, and just reference them from here.
+	//
 	// +optional
 	Allocations []DevicePoolAllocation `json:"allocations,omitempty"`
 
