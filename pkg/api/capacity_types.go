@@ -88,6 +88,34 @@ type Attribute struct {
 	SemVerValue   *SemVer            `json:"semVerValue,omitempty"`
 }
 
+func (a Attribute) Equal(b Attribute) bool {
+	if a.Name != b.Name {
+		return false
+	}
+
+	return a.EqualValue(b)
+}
+
+func (a Attribute) EqualValue(b Attribute) bool {
+	if a.StringValue != nil && b.StringValue != nil && *a.StringValue == *b.StringValue {
+		return true
+	}
+
+	if a.IntValue != nil && b.IntValue != nil && *a.IntValue == *b.IntValue {
+		return true
+	}
+
+	if a.QuantityValue != nil && b.QuantityValue != nil && (*a.QuantityValue).Equal(*b.QuantityValue) {
+		return true
+	}
+
+	if a.SemVerValue != nil && b.SemVerValue != nil && *a.SemVerValue == *b.SemVerValue {
+		return true
+	}
+
+	return false
+}
+
 // SemVer represents a semantic version value. In this prototype it is just a
 // string.
 type SemVer string
