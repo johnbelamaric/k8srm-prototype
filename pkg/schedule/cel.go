@@ -12,13 +12,13 @@ const (
 	DeviceVarName = "device"
 )
 
-func MeetsConstraints(constraints *string, poolAttrs, deviceAttrs []api.Attribute) (bool, error) {
+func MeetsConstraints(constraints *string, attrs []api.Attribute) (bool, error) {
 	if constraints == nil || *constraints == "" {
 		return true, nil
 	}
 
 	inputs := make(map[string]interface{})
-	inputs[DeviceVarName] = attributesToInputs(append(poolAttrs, deviceAttrs...))
+	inputs[DeviceVarName] = attributesToInputs(attrs)
 
 	return evalExpr(*constraints, inputs)
 }

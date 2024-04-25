@@ -120,8 +120,6 @@ func (psr *PoolSetResult) Allocations() []api.DevicePoolAllocation {
 }
 
 // PoolResult methods
-
-// NOTE: specific devices are not supported yet
 func (pr *PoolResult) DevicePoolAllocation() api.DevicePoolAllocation {
 	return api.DevicePoolAllocation{
 		DevicePoolName: pr.PoolName,

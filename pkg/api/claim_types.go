@@ -88,13 +88,6 @@ type DeviceClassSpec struct {
 	// +optional
 	MatchAttributes []string `json:"attributeMatches,omitempty"`
 
-	// AccessMode defines whether device claims using this class are requesting
-	// exclusive access or can allow shared access. If not specified, then the
-	// value from the claim will be used. Otherwise, the class value takes
-	// precedence (or better yet, we flag an error).
-	// +optional
-	AccessMode *DeviceAccessMode `json:"accessMode,omitempty"`
-
 	// DeviceConfigs contains references to arbitrary vendor device configuration
 	// objects that will be attached to the device allocation.
 	// +optional
@@ -168,20 +161,6 @@ type DeviceClaimSpec struct {
 	// objects that will be attached to the device allocation.
 	// +optional
 	Configs []DeviceConfigReference `json:"configs,omitempty"`
-
-	// Fields below here are only relevant for drivers that publish individual
-	// device entries.
-
-	// AccessMode defines whether this claim requires exclusive access or can
-	// allow shared access. If not specified, then the value from the class
-	// will be used. If neither is specified, exclusive access is the default.
-	// +optional
-	AccessMode *DeviceAccessMode `json:"accessMode,omitempty"`
-
-	// Requests specifies the individual allocations needed
-	// from the resources provided by the device.
-	// +optional
-	Requests []CapacityRequest `json:"requests,omitempty"`
 }
 
 // DeviceClaimStatus contains the results of the claim allocation.
@@ -198,8 +177,6 @@ type DeviceClaimStatus struct {
 
 	// Allocations contains the list of device allocations needed to
 	// satisfy the claim, one per pool from which devices were allocated.
-	// In the case of specific device allocations, it will also contain the
-	// device names and per-device resource allocations.
 	//
 	// Note that the "current capacity" of the cluster is the result of
 	// applying all such allocations to the published DevicePools. This
@@ -265,8 +242,6 @@ type DevicePrivilegedClaimStatus struct {
 
 	// Allocations contains the list of device allocations needed to
 	// satisfy the claim, one per pool from which devices were allocated.
-	// In the case of specific device allocations, it will also contain the
-	// device names and per-device resource allocations.
 	// +optional
 	Allocations []DevicePoolAllocation `json:"allocations,omitempty"`
 
@@ -314,9 +289,7 @@ type DeviceConfigReference struct {
 	Name string `json:"name"`
 }
 
-// DevicePoolAllocation contains the pool and number of selected devices. In
-// the case of specific device allocations, it will also contain the device
-// names and per-device resource allocations.
+// DevicePoolAllocation contains the pool and number of selected devices.
 type DevicePoolAllocation struct {
 
 	// DevicePoolName contains the name of the DevicePool for this
@@ -328,14 +301,4 @@ type DevicePoolAllocation struct {
 	// pool to satisfy this claim.
 	// +required
 	DeviceCount int `json:"deviceCount,omitempty"`
-
-	// Allocations contains the individual devices allocated to satisfy
-	// this claim, for pools that include specific devices. When
-	// applicable, this includes the per-device resource allocations as
-	// well. If used, len(Devices) must equal DeviceCount.
-	// +optional
-	Allocations []DeviceAllocation `json:"allocations,omitempty"`
 }
-
-// For clarity, types related to supporting individual devices are in
-// device_types.go.

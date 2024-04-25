@@ -134,7 +134,7 @@ func evaluateNodeForClaim(claim api.DeviceClaim, pools []api.DevicePool) DeviceC
 		}
 
 		// TODO: Consider *class* contraints
-		meets, err := MeetsConstraints(claim.Spec.Constraints, p.Spec.Attributes, nil)
+		meets, err := MeetsConstraints(claim.Spec.Constraints, p.Spec.Attributes)
 		if err != nil {
 			dcr.IgnoredPools = append(dcr.IgnoredPools, PoolResult{
 				PoolName:      p.Name,

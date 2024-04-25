@@ -17,8 +17,7 @@ func ptr[T any](val T) *T {
 func TestMeetsConstraints(t *testing.T) {
 	testCases := map[string]struct {
 		constraints *string
-		poolAttrs   []api.Attribute
-		deviceAttrs []api.Attribute
+		attrs       []api.Attribute
 		expErr      string
 		result      bool
 	}{
@@ -30,9 +29,9 @@ func TestMeetsConstraints(t *testing.T) {
 			constraints: ptr(""),
 			result:      true,
 		},
-		"simple device constraint met": {
+		"simple constraint met": {
 			constraints: ptr("device.vendor == 'example.com'"),
-			deviceAttrs: []api.Attribute{
+			attrs: []api.Attribute{
 				{
 					Name:        "vendor",
 					StringValue: ptr("example.com"),
@@ -40,9 +39,9 @@ func TestMeetsConstraints(t *testing.T) {
 			},
 			result: true,
 		},
-		"simple device constraint failed": {
+		"simple constraint failed": {
 			constraints: ptr("device.vendor == 'example.com'"),
-			deviceAttrs: []api.Attribute{
+			attrs: []api.Attribute{
 				{
 					Name:        "vendor",
 					StringValue: ptr("example.org"),
@@ -50,15 +49,13 @@ func TestMeetsConstraints(t *testing.T) {
 			},
 			result: false,
 		},
-		"simple device and pool constraint met": {
+		"multi-attribute constraint met": {
 			constraints: ptr("device.vendor == 'example.com' && device.model == 'foozer-1000'"),
-			poolAttrs: []api.Attribute{
+			attrs: []api.Attribute{
 				{
 					Name:        "vendor",
 					StringValue: ptr("example.com"),
 				},
-			},
-			deviceAttrs: []api.Attribute{
 				{
 					Name:        "model",
 					StringValue: ptr("foozer-1000"),
@@ -68,13 +65,11 @@ func TestMeetsConstraints(t *testing.T) {
 		},
 		"simple device and pool constraint failed": {
 			constraints: ptr("device.vendor == 'example.com' && device.model == 'foozer-1000'"),
-			poolAttrs: []api.Attribute{
+			attrs: []api.Attribute{
 				{
 					Name:        "vendor",
 					StringValue: ptr("example.org"),
 				},
-			},
-			deviceAttrs: []api.Attribute{
 				{
 					Name:        "model",
 					StringValue: ptr("foozer-1000"),
@@ -85,7 +80,7 @@ func TestMeetsConstraints(t *testing.T) {
 		//TODO: add CEL type conversion for resource.Quantity so this test below can be enabled
 		"quantity constraint met": {
 			constraints: ptr("device.memory >= '10Gi'"),
-			deviceAttrs: []api.Attribute{
+			attrs: []api.Attribute{
 				{
 					Name:          "memory",
 					QuantityValue: ptr(resource.MustParse("10Gi")),
@@ -97,7 +92,7 @@ func TestMeetsConstraints(t *testing.T) {
 	}
 	for tn, tc := range testCases {
 		t.Run(tn, func(t *testing.T) {
-			result, err := MeetsConstraints(tc.constraints, tc.poolAttrs, tc.deviceAttrs)
+			result, err := MeetsConstraints(tc.constraints, tc.attrs)
 			if tc.expErr == "" {
 				require.NoError(t, err)
 				require.Equal(t, tc.result, result)
