@@ -80,13 +80,21 @@ type DeviceClassSpec struct {
 	// +optional
 	MaxDeviceCount *int `json:"maxDeviceCount,omitempty"`
 
-	// MatchAttributes allows specifying a constraint within a set of chosen
-	// devices, without having to explicitly specify the value of the constraint.
-	// For example, this allows constraints like "all devices must be the same model",
-	// without having to specify the exact model. We may be able to use this for some
-	// basic topology constraints too, by representing the topology as device attributes.
+	// MatchAttributes allows specifying a constraint within a set of
+	// chosen devices, without having to explicitly specify the value of
+	// the constraint.  For example, this allows constraints like "all
+	// devices must be the same model", without having to specify the exact
+	// model. We may be able to use this for some basic topology
+	// constraints too, by representing the topology as device attributes.
+	//
+	// Currently, these are just strings. However, we could make them
+	// structs, and include required vs preferred matches. Required matches
+	// would fail if not met, where as preferred would lower the score if
+	// not met. We could even allow low/medium/high priority and adjust the
+	// score differently for each.
+	//
 	// +optional
-	MatchAttributes []string `json:"attributeMatches,omitempty"`
+	MatchAttributes []string `json:"matchAttributes,omitempty"`
 
 	// DeviceConfigs contains references to arbitrary vendor device configuration
 	// objects that will be attached to the device allocation.
@@ -140,7 +148,7 @@ type DeviceClaimSpec struct {
 	// multiple devices instead of just a single device.
 
 	// MinDeviceCount is the minimum number of devices that should be selected
-	// for this claim. It must be greater than or equal to the calss MinDeviceCount,
+	// for this claim. It must be greater than or equal to the class MinDeviceCount,
 	// and less than or equal to the class MaxDeviceCount. Default is 1.
 	// +optional
 	MinDeviceCount *int `json:"minDeviceCount,omitempty"`
@@ -155,7 +163,7 @@ type DeviceClaimSpec struct {
 	// devices. The list here will be merged with the list (if any)  provided
 	// in the class.
 	// +optional
-	MatchAttributes []string `json:"attributeMatches,omitempty"`
+	MatchAttributes []string `json:"matchAttributes,omitempty"`
 
 	// Configs contains references to arbitrary vendor device configuration
 	// objects that will be attached to the device allocation.
@@ -249,6 +257,64 @@ type DevicePrivilegedClaimStatus struct {
 	// TODO: Can we just use ownerRefs instead?
 	// +optional
 	PodNames []string `json:"podNames,omitempty"`
+}
+
+// DeviceSetClaim is one idea for how we can do "composite devices". Rather
+// than changing how the devices are published by drivers, we just change
+// they are consumed. This allows us to combine claims into a group, and apply
+// additional constraints across the group.
+type DeviceSetClaim struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   DeviceSetClaimSpec   `json:"spec,omitempty"`
+	Status DeviceSetClaimStatus `json:"status,omitempty"`
+}
+
+// DeviceSetClaimSpec contains the details for requesting a set of devices
+// as a unit.
+type DeviceSetClaimSpec struct {
+	// TODO: Maybe we want DeviceSetClass ?
+
+	// MatchAttributes allows specifying a constraint that will apply
+	// across all of the claims. For example, if you specified "numa",
+	// then this claim could only be successfully fulfilled if all of
+	// the included claims could be fulfilled by pools with the same
+	// "numa" attribute value. If we simply set matchAttributes in each
+	// claim separately, then they could be consistent within claims, but
+	// inconsistent across claims. Therefore, we need this additional
+	// resource.
+	//
+	// +optional
+
+	MatchAttributes []string `json:"matchAttributes,omitempty"`
+
+	ClaimSpec []DeviceClaimSpec `json:claimSpec,omitempty"`
+}
+
+type DeviceSetClaimStatus struct {
+	ClaimStatus []DeviceClaimStatus `json:"claimStatus,omitempty"`
+}
+
+// DeviceClaimTemplate is used to generate claims along with Pods. These
+// generated claims have the same lifecycle as the Pod.
+// TODO: Could we just use a DeviceClaim here? Or is that too confusing?
+type DeviceClaimTemplate struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec DeviceClaimTemplateSpec `json:"spec,omitempty"`
+}
+
+// DeviceClaimTemplateSpec contains the information needed to generate
+// DeviceClaims, DevicePrivilegedClaims, or DeviceSetClaims.
+type DeviceClaimTemplateSpec struct {
+	metav1.ObjectMeta
+
+	// Exactly one of these must be populated
+	DeviceClaimSpec           *DeviceClaimSpec           `json:"claimSpec,omitempty"`
+	DevicePrivilegedClaimSpec *DevicePrivilegedClaimSpec `json:"privilegedClaimSpec,omitempty"`
+	DeviceSetClaimSpec        *DeviceSetClaimSpec        `json:"setClaimSpec,omitempty"`
 }
 
 // DeviceClassConfigReference is used to refer to arbitrary configuration
