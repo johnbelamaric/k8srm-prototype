@@ -16,8 +16,6 @@ go test ./...
 ?   	github.com/johnbelamaric/k8srm-prototype/cmd/schedule	[no test files]
 ?   	github.com/johnbelamaric/k8srm-prototype/pkg/api	[no test files]
 ?   	github.com/johnbelamaric/k8srm-prototype/pkg/gen	[no test files]
-?   	github.com/johnbelamaric/k8srm-prototype/pkg/old/sched-cli	[no test files]
-ok  	github.com/johnbelamaric/k8srm-prototype/pkg/old/schedule	(cached)
 ok  	github.com/johnbelamaric/k8srm-prototype/pkg/schedule	(cached)
 cd cmd/schedule && go build
 cd cmd/mock-apiserver && go build
